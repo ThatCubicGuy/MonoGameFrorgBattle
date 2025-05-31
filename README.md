@@ -1,0 +1,1 @@
+Nothing big for now, I started on a redesign for the main classes though, cause every single time I look back at any code I have made I can't help but feel like "Man. This is a convoluted and inefficient mess. Time to redesign it into an even more convoluted and inefficient mess."
