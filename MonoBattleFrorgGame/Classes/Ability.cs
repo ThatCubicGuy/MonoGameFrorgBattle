@@ -9,29 +9,68 @@ namespace MonoBattleFrorgGame.Classes
 {
     internal class Ability
     {
-        internal class Cost(int hp = 0, int mana = 0, int energy = 0, int specialStat = 0)
+        internal class AbilityCost()
         {
-            public int HpCost = hp;
-            public int ManaCost = mana;
-            public int EnergyCost = energy;
-            public int SpecialStatCost = specialStat;
+            private double hpCost = 0;
+            private double manaCost = 0;
+            private double energyCost = 0;
+            private double extraCost = 0;
+            public double HpCost => hpCost;
+            public double ManaCost => manaCost;
+            public double EnergyCost => energyCost;
+            public double ExtraCost => extraCost;
+            public AbilityCost Hp(double newHpCost)
+            {
+                hpCost = newHpCost;
+                return this;
+            }
+            public AbilityCost Mana(double newManaCost)
+            {
+                manaCost = newManaCost;
+                return this;
+            }
+            public AbilityCost Energy(double newEnergyCost)
+            {
+                energyCost = newEnergyCost;
+                return this;
+            }
+            public AbilityCost Extra(double newSpecialStatCost)
+            {
+                extraCost = newSpecialStatCost;
+                return this;
+            }
+            public AbilityCostProvider Provider = null;
+            internal class AbilityCostProvider
+            {
+                private static double @Default() { return 0; }
+                private readonly Func<double> calcHp;
+                private readonly Func<double> calcMana;
+                private readonly Func<double> calcEnergy;
+                private readonly Func<double> calcExtra;
+                public AbilityCostProvider(Func<double> HP = null, Func<double> MP = null, Func<double> ENG = null, Func<double> EX = null)
+                {
+                    calcHp = HP ?? @Default;
+                    calcMana = MP ?? @Default;
+                    calcEnergy = ENG ?? @Default;
+                    calcExtra = EX ?? @Default;
+                }
+
+                public AbilityCost Get()
+                {
+                    return new AbilityCost().Hp(calcHp()).Mana(calcMana()).Energy(calcEnergy()).Extra(calcExtra());
+                }
+            }
         }
-        //internal class PercentCost(double hp = 0, double mana = 0, double energy = 0, double specialStat = 0) : Cost
-        //{
-        //    // i wanna unify things so idk if i should use this
-        //    // will keep the declaration but maybe avoid for now
-        //}
-        protected Cost AbilityCost { get; set; }
-        public Cost GetCost()
+        internal class AbilitySettings(bool percent = false, bool dynamic = false, bool repeats = false)
         {
-            return AbilityCost; // protecting cause it's easier (Ability.GetCost() instead of Ability.AbilityCost);
+            public bool IsPercent = percent;
+            public bool IsDynamic = dynamic;
+            public bool RepeatsTurn = repeats;
         }
-        public void UpdateCost(int? hp = null, int? mana = null, int? energy = null, int? specialStat = null)
+        protected AbilityCost Cost { get; set; }
+        public AbilityCost GetCost()
         {
-            AbilityCost.HpCost = hp ?? AbilityCost.HpCost;
-            AbilityCost.ManaCost = mana ?? AbilityCost.ManaCost;
-            AbilityCost.EnergyCost = energy ?? AbilityCost.EnergyCost;
-            AbilityCost.SpecialStatCost = specialStat ?? AbilityCost.SpecialStatCost;
+            return Cost;
         }
         private Func<Fighter, int> Effect { get; set; }
         private Action<Fighter> Display { get; set; }
