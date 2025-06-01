@@ -9,16 +9,25 @@ namespace MonoBattleFrorgGame.Classes
 {
     internal class Ability
     {
-        internal class AbilityCost()
+        internal class AbilityCost : ICloneable
         {
             private double hpCost = 0;
             private double manaCost = 0;
             private double energyCost = 0;
             private double extraCost = 0;
-            public double HpCost => hpCost;
-            public double ManaCost => manaCost;
-            public double EnergyCost => energyCost;
-            public double ExtraCost => extraCost;
+            private readonly CostProperties costProperties;
+            public AbilityCost(CostProperties costProperties)
+            {
+                this.costProperties = costProperties;
+            }
+            public double HpCost => costProperties.CalcHp(hpCost);
+            public double ManaCost => costProperties.CalcMana(manaCost);
+            public double EnergyCost => costProperties.CalcEnergy(energyCost);
+            public double ExtraCost => costProperties.CalcExtra(extraCost);
+            object ICloneable.Clone()
+            {
+                return MemberwiseClone();
+            }
             public AbilityCost Hp(double newHpCost)
             {
                 hpCost = newHpCost;
@@ -39,33 +48,82 @@ namespace MonoBattleFrorgGame.Classes
                 extraCost = newSpecialStatCost;
                 return this;
             }
-            public AbilityCostProvider Provider = null;
-            internal class AbilityCostProvider
+            internal class CostProperties
             {
-                private static double @Default() { return 0; }
-                private readonly Func<double> calcHp;
-                private readonly Func<double> calcMana;
-                private readonly Func<double> calcEnergy;
-                private readonly Func<double> calcExtra;
-                public AbilityCostProvider(Func<double> HP = null, Func<double> MP = null, Func<double> ENG = null, Func<double> EX = null)
+                public CostType SoftCost { get; private set; }
+                public CostType ReverseCost { get; private set; }
+                public CostType ThresholdCost { get; private set; }
+                public CostType PercentCost { get; private set; }
+                private static double @Default(double val) { return val; }
+                public Func<double, double> CalcHp { get; private set; } = @Default;
+                public Func<double, double> CalcMana { get; private set; } = @Default;
+                public Func<double, double> CalcEnergy { get; private set; } = @Default;
+                public Func<double, double> CalcExtra { get; private set; } = @Default;
+                public CostProperties Soft(CostType costType)
                 {
-                    calcHp = HP ?? @Default;
-                    calcMana = MP ?? @Default;
-                    calcEnergy = ENG ?? @Default;
-                    calcExtra = EX ?? @Default;
+                    SoftCost = costType;
+                    return this;
                 }
-
-                public AbilityCost Get()
+                public CostProperties Reverse(CostType costType) { 
+                    ReverseCost = costType;
+                    return this;
+                }
+                public CostProperties Threshold(CostType costType)
                 {
-                    return new AbilityCost().Hp(calcHp()).Mana(calcMana()).Energy(calcEnergy()).Extra(calcExtra());
+                    ThresholdCost = costType;
+                    return this;
+                }
+                public CostProperties Percent(CostType costType)
+                {
+                    PercentCost = costType;
+                    return this;
+                }
+                public CostProperties DynamicHp(Func<double, double> func)
+                {
+                    CalcHp = func ?? @Default;
+                    return this;
+                }
+                public CostProperties DynamicMana(Func<double, double> func)
+                {
+                    CalcMana = func ?? @Default;
+                    return this;
+                }
+                public CostProperties DynamicEnergy(Func<double, double> func)
+                {
+                    CalcEnergy = func ?? @Default;
+                    return this;
+                }
+                public CostProperties DynamicExtra(Func<double, double> func)
+                {
+                    CalcExtra = func ?? @Default;
+                    return this;
                 }
             }
         }
-        internal class AbilitySettings(bool percent = false, bool dynamic = false, bool repeats = false)
+        internal class AbilitySettings : ICloneable
         {
-            public bool IsPercent = percent;
-            public bool IsDynamic = dynamic;
-            public bool RepeatsTurn = repeats;
+            public bool RepeatsTurn { get; private set; }
+            public AbilitySettings(bool repeats = false)
+            {
+                RepeatsTurn = repeats;
+            }
+            object ICloneable.Clone()
+            {
+                return MemberwiseClone();
+            }
+            public AbilitySettings Repeat(bool val)
+            {
+                RepeatsTurn = val;
+                return this;
+            }
+        }
+        [Flags]
+        public enum CostType
+        {
+            hp =        0b_0000_0001,   // 1
+            mana =      0b_0000_0010,   // 2
+            energy =    0b_0000_0100,   // 4
+            extra =     0b_0000_1000,   // 8
         }
         protected AbilityCost Cost { get; set; }
         public AbilityCost GetCost()
