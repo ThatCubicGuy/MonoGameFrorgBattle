@@ -9,12 +9,12 @@ namespace MonoBattleFrorgGame.Classes
     internal interface IModifier
     {
         double Amount { get; }
+        Operation Op { get; }
         enum Property;
         enum Operation
         {
             Add,
             Multiply
         }
-        Operation Op { get; }
     }
 }

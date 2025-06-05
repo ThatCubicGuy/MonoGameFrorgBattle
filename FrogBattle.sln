@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35327.3
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoBattleFrorgGame", "MonoBattleFrorgGame\MonoBattleFrorgGame.csproj", "{64361FBE-E6AB-4EF0-A1B3-310DB829FB06}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FrogBattle", "FrogBattle\FrogBattle.csproj", "{64361FBE-E6AB-4EF0-A1B3-310DB829FB06}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -17,6 +17,10 @@ namespace MonoBattleFrorgGame.Classes
         protected double CurrentHp;
         protected double CurrentMana;
         protected double CurrentEnergy = 0;
+        protected List<TurnEvent> StartOfTurnEvents = [];
+        protected List<TurnEvent> EndOfTurnEvents = [];
+        // i need to understand how event work dawg
+        //public EventHandler<EventArgs> HpChanged;
         internal class TurnEvent(Fighter caster, Fighter target, Func<Fighter, Fighter, string> eventAction)
         {
             private uint TurnCount;
@@ -33,8 +37,6 @@ namespace MonoBattleFrorgGame.Classes
                 return TurnCount -= turns;
             }
         }
-        protected List<TurnEvent> StartOfTurnEvents = [];
-        protected List<TurnEvent> EndOfTurnEvents = [];
         private void StartOfTurnChecks()
         {
             string output = string.Empty;

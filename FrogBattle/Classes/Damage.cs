@@ -3,17 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static MonoBattleFrorgGame.FrorgBattle;
 
 namespace MonoBattleFrorgGame.Classes
 {
     internal class Damage : ICloneable
     {
         private double amount = 0;
-        public DamageProperties Properties { get; private set; }
+        public Properties Props { get; private set; }
         public object Clone()
         {
             var clone = MemberwiseClone() as Damage;
-            clone.Properties = Properties.Clone() as DamageProperties;
+            clone.Props = Props.Clone() as Properties;
             return clone;
         }
         public Damage Amount(double count)
@@ -41,7 +42,24 @@ namespace MonoBattleFrorgGame.Classes
             }
             return result;
         }
-        internal class DamageProperties : ICloneable
+        public struct DamageInstance // detonates self with mind
+        {
+            public double Amount;
+            public DamageType Type;
+            public bool Crit;
+            public DamageInstance(Damage damage)
+            {
+                Amount = damage.amount;
+                Type = damage.Props.GetDamageType();
+                Crit = damage.Crits();
+            }
+        }
+        public DamageInstance GetInstance(params Modifier[] mods)
+        {
+            // idk i initially thought adding five gazillion types was a good idea i guess...
+            return new DamageInstance(this);
+        }
+        internal class Properties : ICloneable
         {
             private DamageType type = DamageType.None;
             private double critRate = 0;
@@ -52,29 +70,31 @@ namespace MonoBattleFrorgGame.Classes
             public double GetCritDamage() => critDamage;
             public double GetDefenseIgnore() => ignoreDefense;
             public object Clone() { return MemberwiseClone(); }
-            public DamageProperties @Type(DamageType newType)
+            public Properties @Type(DamageType newType)
             {
                 type = newType;
                 return this;
             }
-            public DamageProperties CritRate(double critRate)
+            public Properties CritRate(double critRate)
             {
                 this.critRate = critRate;
                 return this;
             }
-            public DamageProperties CritDmg(double critDmg)
+            public Properties CritDmg(double critDmg)
             {
                 critDamage = critDmg;
                 return this;
             }
-            public DamageProperties IgnoreDefense(double ignoreDefense)
+            public Properties IgnoreDefense(double ignoreDefense)
             {
                 this.ignoreDefense = ignoreDefense;
                 return this;
             }
         }
-        internal class DamageModifier
+        internal class Modifier : IModifier
         {
+            public double Amount { get; private set; }
+            public IModifier.Operation Op { get; }
             public enum Property
             {
                 Amount,
@@ -82,22 +102,17 @@ namespace MonoBattleFrorgGame.Classes
                 CritDamage,
                 IgnoreDefense
             }
-            public enum Operation
-            {
-                Add,
-                Multiply
-            }
             public Property damageProperty;
-            public Operation operation;
-            public DamageModifier(Property prop, Operation op)
+            public Modifier(double amount, Property prop, IModifier.Operation op)
             {
+                Amount = amount;
                 damageProperty = prop;
-                operation = op;
+                Op = op;
             }
         } // devilish but genius idea. trust
         public bool Crits()
         {
-            return 1 < Properties.GetCritRate(); // an RNG is supposed to go here but I haven't made that yet
+            return RNG < Props.GetCritRate();
         }
     }
 }

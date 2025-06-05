@@ -28,4 +28,5 @@ namespace MonoBattleFrorgGame.Classes
             // here we also do some thinking. do we separate stat modifiers and damage modifiers? idfk.
         }
     }
+    // after adding the IModifier interface i'm tempted to split even more stuff tbh. could end up cool?
 }
