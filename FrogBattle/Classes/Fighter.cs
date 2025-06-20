@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MonoBattleFrorgGame.Classes
+namespace FrogBattle.Classes
 {
     internal class Fighter
     {
@@ -19,6 +19,7 @@ namespace MonoBattleFrorgGame.Classes
         protected double CurrentEnergy = 0;
         protected List<TurnEvent> StartOfTurnEvents = [];
         protected List<TurnEvent> EndOfTurnEvents = [];
+        public List<StatusEffect> StatusEffects { get; private set; }
         // i need to understand how event work dawg
         //public EventHandler<EventArgs> HpChanged;
         internal class TurnEvent(Fighter caster, Fighter target, Func<Fighter, Fighter, string> eventAction)

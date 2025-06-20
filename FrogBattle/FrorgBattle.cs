@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 
-namespace MonoBattleFrorgGame
+namespace FrogBattle
 {
     public class FrorgBattle : Game
     {
@@ -31,7 +31,7 @@ namespace MonoBattleFrorgGame
         Texture2D hpbar;
 
         private static readonly Random rand = new();
-        public static double RNG
+        public static double RNG 
         {
             get
             {
@@ -82,7 +82,7 @@ namespace MonoBattleFrorgGame
             GraphicsDevice.Clear(Color.Black);
             
 
-            // TODO: Add your drawing code here
+            // just messing around here
             _spriteBatch.Begin();
             _spriteBatch.Draw(battleui, Tools.ChunkVec(0, 0), Tools.Chunk(15, 0), Color.White);
             _spriteBatch.Draw(battleui, Tools.ChunkVec(1, 0), Tools.Chunk(15, 1), Color.White);

@@ -1,25 +1,48 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
-using static MonoBattleFrorgGame.FrorgBattle;
+using static FrogBattle.Classes.Damage.Modifier;
+using static FrogBattle.FrorgBattle;
 
-namespace MonoBattleFrorgGame.Classes
+namespace FrogBattle.Classes
 {
     internal class Damage : ICloneable
     {
+        public static Damage operator +(Damage a, Damage b)
+        {
+            return new Damage().Amount(a.amount + b.amount).CritRate(a.Props.CritRate + b.Props.CritRate).CritDamage(a.Props.CritDamage + b.Props.CritDamage).IgnoreDefense(a.Props.DefenseIgnore + b.Props.DefenseIgnore);
+        }
+        public static Damage operator *(Damage a, Damage b)
+        {
+            return new Damage().Amount((a.amount + b.amount) / 2).CritRate((1 - a.Props.CritRate) * (1 - b.Props.CritRate)).CritDamage(Math.Sqrt(a.Props.CritDamage * b.Props.CritDamage)).IgnoreDefense((a.Props.DefenseIgnore + b.Props.DefenseIgnore) / 2);
+        }
         private double amount = 0;
         public Properties Props { get; private set; }
         public object Clone()
         {
-            var clone = MemberwiseClone() as Damage;
-            clone.Props = Props.Clone() as Properties;
-            return clone;
+            return MemberwiseClone();
         }
         public Damage Amount(double count)
         {
             amount = count;
+            return this;
+        }
+        public Damage CritRate(double critRate)
+        {
+            Props.CritChance(critRate);
+            return this;
+        }
+        public Damage CritDamage(double critDmg)
+        {
+            Props.CritDmg(critDmg);
+            return this;
+        }
+        public Damage IgnoreDefense(double ignoreDefense)
+        {
+            Props.IgnoreDefense(ignoreDefense);
             return this;
         }
         internal enum DamageType
@@ -54,65 +77,75 @@ namespace MonoBattleFrorgGame.Classes
                 Crit = damage.Crits();
             }
         }
-        public DamageInstance GetInstance(params Modifier[] mods)
-        {
-            // idk i initially thought adding five gazillion types was a good idea i guess...
-            return new DamageInstance(this);
-        }
-        internal class Properties : ICloneable
+        internal struct Properties
         {
             private DamageType type = DamageType.None;
-            private double critRate = 0;
-            private double critDamage = 2;
-            private double ignoreDefense = 0;
             public DamageType GetDamageType() => type;
-            public double GetCritRate() => critRate;
-            public double GetCritDamage() => critDamage;
-            public double GetDefenseIgnore() => ignoreDefense;
-            public object Clone() { return MemberwiseClone(); }
+            public double CritRate { get; private set; } = 0;
+            public double CritDamage { get; private set; } = 2;
+            public double DefenseIgnore { get; private set; } = 0;
+            public Properties(DamageType dmgType, double cr, double cd, double defIgn)
+            {
+                type = dmgType;
+                CritRate = cr;
+                CritDamage = cd;
+                DefenseIgnore = defIgn;
+            }
             public Properties @Type(DamageType newType)
             {
                 type = newType;
                 return this;
             }
-            public Properties CritRate(double critRate)
+            public Properties CritChance(double critRate)
             {
-                this.critRate = critRate;
+                CritRate = Math.Min(critRate, 1);
                 return this;
             }
             public Properties CritDmg(double critDmg)
             {
-                critDamage = critDmg;
+                CritDamage = critDmg;
                 return this;
             }
             public Properties IgnoreDefense(double ignoreDefense)
             {
-                this.ignoreDefense = ignoreDefense;
+                DefenseIgnore = Math.Min(ignoreDefense, 1);
                 return this;
             }
         }
-        internal class Modifier : IModifier
+        internal class Modifier : IModifier<PropType>
         {
-            public double Amount { get; private set; }
-            public IModifier.Operation Op { get; }
-            public enum Property
+            public enum PropType
             {
                 Amount,
                 CritRate,
                 CritDamage,
-                IgnoreDefense
+                IgnoreDefense,
             }
-            public Property damageProperty;
-            public Modifier(double amount, Property prop, IModifier.Operation op)
+            public double Amount { get; private set; }
+            public Operator Op { get; }
+            public PropType Property { get; }
+            public Modifier(double amount, PropType prop, Operator op)
             {
                 Amount = amount;
-                damageProperty = prop;
+                Property = prop;
                 Op = op;
+            }
+            public Damage Apply(Damage dmg)
+            {
+                var output = dmg.Clone() as Damage;
+                return Property switch
+                {
+                    PropType.Amount => output.Amount(Op.Apply(Amount, dmg.amount)),
+                    PropType.CritRate => output.CritRate(Op.Apply(Amount, dmg.Props.CritRate)),
+                    PropType.CritDamage=> output.CritDamage(Op.Apply(Amount, dmg.Props.CritDamage)),
+                    PropType.IgnoreDefense => output.IgnoreDefense(Op.Apply(Amount, dmg.Props.DefenseIgnore)),
+                    _ => throw new ArgumentOutOfRangeException(nameof(Property), Property, null)
+                };
             }
         } // devilish but genius idea. trust
         public bool Crits()
         {
-            return RNG < Props.GetCritRate();
+            return RNG < Props.CritRate;
         }
     }
 }

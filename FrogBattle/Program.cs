@@ -1,2 +1,2 @@
-﻿using var game = new MonoBattleFrorgGame.FrorgBattle();
+﻿using var game = new FrogBattle.FrorgBattle();
 game.Run();

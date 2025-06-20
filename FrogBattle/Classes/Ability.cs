@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MonoBattleFrorgGame.Classes
+namespace FrogBattle.Classes
 {
     internal class Ability
     {
@@ -120,10 +120,10 @@ namespace MonoBattleFrorgGame.Classes
         [Flags]
         public enum CostType
         {
-            hp =        0b_0000_0001,   // 1
-            mana =      0b_0000_0010,   // 2
-            energy =    0b_0000_0100,   // 4
-            extra =     0b_0000_1000,   // 8
+            hp =        1 << 0,   // 1
+            mana =      1 << 1,   // 2
+            energy =    1 << 2,   // 4
+            extra =     1 << 3,   // 8
         }
         protected AbilityCost Cost { get; set; }
         public AbilityCost GetCost()

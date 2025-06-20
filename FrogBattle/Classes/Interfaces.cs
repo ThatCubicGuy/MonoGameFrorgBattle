@@ -1,20 +1,22 @@
-﻿using System;
+﻿using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MonoBattleFrorgGame.Classes
+namespace FrogBattle.Classes
 {
-    internal interface IModifier
+    internal interface IModifier<TProp> : IEffect where TProp : struct, Enum
     {
+        TProp Property { get; }
         double Amount { get; }
-        Operation Op { get; }
-        enum Property;
-        enum Operation
-        {
-            Add,
-            Multiply
-        }
+        Operator Op { get; }
+    }
+    enum Operator
+    {
+        Add,
+        Multiply
     }
 }
