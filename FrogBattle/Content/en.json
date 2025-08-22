@@ -1,0 +1,23 @@
+{
+    "language.name": "English",
+    "effect.type.atk": "{0} ATK",
+    "effect.type.def": "{0} DEF",
+    "effect.type.spd": "{0} SPD",
+    "effect.type.effectHitRate": "{0} Effect Hit Rate",
+    "effect.type.effectRes": "{0} Effect RES",
+    "effect.type.allTypeRes": "{0} All-Type RES",
+    "effect.type.manaCost": "{0} Mana Cost",
+    "effect.type.manaRegen": "{0} Mana Regeneration",
+    "effect.type.incomingHealing": "{0} Incoming Healing",
+    "effect.type.outgoingHealing": "{0} Outgoing healing",
+    "effect.type.shield": "{0}HP Shield",
+    "effect.type.barrier": "{0} Barriers",
+    "damage.type.none": "None",
+    "damage.type.blunt": "Blunt",
+    "damage.type.slash": "Slash",
+    "damage.type.pierce": "Pierce",
+    "damage.type.bullet": "Bullet",
+    "damage.type.blast": "Blast",
+    "damage.type.magic": "Magic",
+    "character.generic.miss": "{1} dodged the attack!"
+}

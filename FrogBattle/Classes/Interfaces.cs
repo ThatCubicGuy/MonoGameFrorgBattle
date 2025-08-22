@@ -1,5 +1,4 @@
-﻿using Microsoft.Xna.Framework;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Metadata;
@@ -8,15 +7,50 @@ using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
-    internal interface IModifier<TProp> : IEffect where TProp : struct, Enum
+    public interface IEffect
     {
-        TProp Property { get; }
-        double Amount { get; }
-        Operator Op { get; }
+        string Name { get; }
+        public double Amount { get; set; }
     }
-    enum Operator
+    public enum DamageTypes
     {
-        Add,
-        Multiply
+        None,
+        Blunt,
+        Slash,
+        Pierce,
+        Bullet,
+        Blast,
+        Magic,
+        True
+    }
+    public enum Stats
+    {
+        None,
+        MaxHp,
+        Atk,
+        Def,
+        Spd,
+        EffectHitRate,
+        EffectRES,
+        AllTypeRES,
+        ManaCost,
+        ManaRegen,
+        IncomingHealing,
+        OutgoingHealing,
+    }
+    public enum Pools
+    {
+        Hp,
+        Mana,
+        Energy,
+        Special,
+        Shield,
+        Barrier,
+        Custom,
+    }
+    public enum Operators
+    {
+        Additive,
+        Multiplicative
     }
 }

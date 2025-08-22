@@ -7,15 +7,6 @@ namespace FrogBattle
 {
     public class FrorgBattle : Game
     {
-        internal class  TextBox
-        {
-            public int Width { get; private set; }
-            public int Height { get; private set; }
-            public TextBox(int width, int height)
-            {
-                Width = width; Height = height;
-            }
-        }
         private static class Tools
         {
             public static Rectangle Chunk(int x, int y)
@@ -27,8 +18,9 @@ namespace FrogBattle
                 return new Vector2(16 * x, 16 * y);
             }
         }
-        Texture2D battleui;
+        Texture2D resources1;
         Texture2D hpbar;
+        Texture2D battleui;
 
         private static readonly Random rand = new();
         public static double RNG 
@@ -61,8 +53,9 @@ namespace FrogBattle
             _spriteBatch = new SpriteBatch(GraphicsDevice);
 
             // TODO: use this.Content to load your game content here
-            battleui = Content.Load<Texture2D>("resources");
+            resources1 = Content.Load<Texture2D>("resources");
             hpbar = Content.Load<Texture2D>("bayonetta-hp-bar");
+            battleui = Content.Load<Texture2D>("frorgbattle-ui-draft-2");
         }
 
         protected override void Update(GameTime gameTime)
@@ -84,13 +77,14 @@ namespace FrogBattle
 
             // just messing around here
             _spriteBatch.Begin();
-            _spriteBatch.Draw(battleui, Tools.ChunkVec(0, 0), Tools.Chunk(15, 0), Color.White);
-            _spriteBatch.Draw(battleui, Tools.ChunkVec(1, 0), Tools.Chunk(15, 1), Color.White);
-            _spriteBatch.Draw(battleui, Tools.ChunkVec(2, 0), Tools.Chunk(15, 2), Color.White);
-            _spriteBatch.Draw(battleui, Tools.ChunkVec(0, 1), Tools.Chunk(15, 3), Color.White);
-            _spriteBatch.Draw(battleui, Tools.ChunkVec(1, 1), Tools.Chunk(15, 4), Color.White);
-            _spriteBatch.Draw(battleui, Tools.ChunkVec(2, 1), Tools.Chunk(15, 5), Color.White);
+            _spriteBatch.Draw(resources1, Tools.ChunkVec(0, 0), Tools.Chunk(15, 0), Color.White);
+            _spriteBatch.Draw(resources1, Tools.ChunkVec(1, 0), Tools.Chunk(15, 1), Color.White);
+            _spriteBatch.Draw(resources1, Tools.ChunkVec(2, 0), Tools.Chunk(15, 2), Color.White);
+            _spriteBatch.Draw(resources1, Tools.ChunkVec(0, 1), Tools.Chunk(15, 3), Color.White);
+            _spriteBatch.Draw(resources1, Tools.ChunkVec(1, 1), Tools.Chunk(15, 4), Color.White);
+            _spriteBatch.Draw(resources1, Tools.ChunkVec(2, 1), Tools.Chunk(15, 5), Color.White);
             _spriteBatch.Draw(hpbar, new Vector2(120, 70), Color.White);
+            _spriteBatch.Draw(battleui, new Vector2(0, 0), Color.White);
             //_spriteBatch.Draw();
             _spriteBatch.End();
 

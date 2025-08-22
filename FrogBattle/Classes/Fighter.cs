@@ -17,44 +17,137 @@ namespace FrogBattle.Classes
         protected double CurrentHp;
         protected double CurrentMana;
         protected double CurrentEnergy = 0;
-        protected List<TurnEvent> StartOfTurnEvents = [];
-        protected List<TurnEvent> EndOfTurnEvents = [];
-        public List<StatusEffect> StatusEffects { get; private set; }
-        // i need to understand how event work dawg
-        //public EventHandler<EventArgs> HpChanged;
-        internal class TurnEvent(Fighter caster, Fighter target, Func<Fighter, Fighter, string> eventAction)
+        private List<StatusEffect> StatusEffects;
+        #region Stats
+        public double MaxHp
         {
-            private uint TurnCount;
-            Fighter Caster { get; } = caster;
-            Fighter Target { get; } = target;
-            Func<Fighter, Fighter, string> EventAction { get; } = eventAction;
-            public string ActivateEvent()
+            get
             {
-                return EventAction(Caster, Target);
-            }
-
-            public uint Expire(uint turns = 1)
-            {
-                return TurnCount -= turns;
+                return BaseHp + GetEffects().Calculate(Stats.MaxHp, BaseHp);
             }
         }
+        public double Atk
+        {
+            get
+            {
+                return BaseAtk + GetEffects().Calculate(Stats.Atk, BaseAtk);
+            }
+        }
+        public double Def
+        {
+            get
+            {
+                return BaseDef + GetEffects().Calculate(Stats.Def, BaseDef);
+            }
+        }
+        public double Spd
+        {
+            get
+            {
+                return BaseSpd + GetEffects().Calculate(Stats.Spd, BaseSpd);
+            }
+        }
+        public double EffectHitRate
+        {
+            get
+            {
+                return GetEffects().Calculate(Stats.EffectHitRate, 0);
+            }
+        }
+        public double EffectRES
+        {
+            get
+            {
+                return GetEffects().Calculate(Stats.EffectRES, 0);
+            }
+        }
+        public double AllTypeRES
+        {
+            get
+            {
+                return GetEffects().Calculate(Stats.AllTypeRES, 0);
+            }
+        }
+        public double ManaCost
+        {
+            get
+            {
+                return 1 + GetEffects().Calculate(Stats.ManaCost, 0);
+            }
+        }
+        public double ManaRegen
+        {
+            get
+            {
+                return 1 + GetEffects().Calculate(Stats.ManaRegen, 0);
+            }
+        }
+        public double IncomingHealing
+        {
+            get
+            {
+                return 1 + GetEffects().Calculate(Stats.IncomingHealing, 0);
+            }
+        }
+        public double OutgoingHealing
+        {
+            get
+            {
+                return 1 + GetEffects().Calculate(Stats.OutgoingHealing, 0);
+            }
+        }
+        #endregion
+        // i need to understand how event work dawg
+        //public EventHandler<EventArgs> HpChanged;
         private void StartOfTurnChecks()
         {
-            string output = string.Empty;
-            foreach (var item in StartOfTurnEvents)
-            {
-                output += item.ActivateEvent() + '\n';
-                item.Expire();
-            }
+            // DoT Damage & Ticks, Stuns
         }
         private void EndOfTurnChecks()
         {
-            string output = string.Empty;
-            foreach (var item in EndOfTurnEvents)
+            // Effect Ticks
+        }
+        private bool CanUseAbility(Ability x)
+        {
+            foreach (var cost in x.Costs)
             {
-                output += item.ActivateEvent() + '\n';
-                item.Expire();
+                if ((cost.props & Ability.CostProperties.soft) != 0) continue;
+                switch (cost.currency)
+                {
+
+                }
             }
         }
+        public Damage OutgoingDamage(Stats source, double ratio, uint split = 1)
+        {
+            return new(source.Resolve(this) * ratio, new(), Damage.Flags.none);
+        }
+        /// <summary>
+        /// Searches <see cref="StatusEffects"/> for all effects.
+        /// </summary>
+        /// <returns>Every effect applied to this fighter.</returns>
+        public IEnumerable<StatusEffect> GetEffects()
+        {
+            return StatusEffects;
+        }
+        /// <summary>
+        /// Searches <see cref="StatusEffects"/> for all effects that match the given predicate.
+        /// </summary>
+        /// <param name="predicate">The condition that a <see cref="StatusEffect"/> must match.</param>
+        /// <returns>An enumerable of effects that match the given predicate.</returns>
+        public IEnumerable<StatusEffect> GetEffects(Predicate<StatusEffect> predicate)
+        {
+            return StatusEffects.FindAll(predicate);
+        }
+        /// <summary>
+        /// Searches <see cref="StatusEffects"/> for all effects that modify the <see cref="Stats"/> <paramref name="stat"/> in some way.
+        /// </summary>
+        /// <param name="stat">The <see cref="StatusEffect.Modifier.Stat"/> effects to search for.</param>
+        /// <returns>An enumerable of StatusEffects that modify <paramref name="stat"/></returns>
+        public IEnumerable<StatusEffect> GetEffects(Stats stat)
+        {
+            return StatusEffects.FindAll(new((item) => item.GetModifiers().Any((eff) => eff.Attribute == stat)));
+        }
+
     }
 }

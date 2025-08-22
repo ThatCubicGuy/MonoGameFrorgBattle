@@ -9,126 +9,36 @@ namespace FrogBattle.Classes
 {
     internal class Ability
     {
-        internal class AbilityCost : ICloneable
+        public AbilitySettings Settings { get; set; }
+        public List<AbilityCost> Costs = [];
+        public Ability(AbilitySettings settings, params AbilityCost[] costs)
         {
-            private double hpCost = 0;
-            private double manaCost = 0;
-            private double energyCost = 0;
-            private double extraCost = 0;
-            private readonly CostProperties costProperties;
-            public AbilityCost(CostProperties costProperties)
-            {
-                this.costProperties = costProperties;
-            }
-            public double HpCost => costProperties.CalcHp(hpCost);
-            public double ManaCost => costProperties.CalcMana(manaCost);
-            public double EnergyCost => costProperties.CalcEnergy(energyCost);
-            public double ExtraCost => costProperties.CalcExtra(extraCost);
-            object ICloneable.Clone()
-            {
-                return MemberwiseClone();
-            }
-            public AbilityCost Hp(double newHpCost)
-            {
-                hpCost = newHpCost;
-                return this;
-            }
-            public AbilityCost Mana(double newManaCost)
-            {
-                manaCost = newManaCost;
-                return this;
-            }
-            public AbilityCost Energy(double newEnergyCost)
-            {
-                energyCost = newEnergyCost;
-                return this;
-            }
-            public AbilityCost Extra(double newSpecialStatCost)
-            {
-                extraCost = newSpecialStatCost;
-                return this;
-            }
-            internal class CostProperties
-            {
-                public CostType SoftCost { get; private set; }
-                public CostType ReverseCost { get; private set; }
-                public CostType ThresholdCost { get; private set; }
-                public CostType PercentCost { get; private set; }
-                private static double @Default(double val) { return val; }
-                public Func<double, double> CalcHp { get; private set; } = @Default;
-                public Func<double, double> CalcMana { get; private set; } = @Default;
-                public Func<double, double> CalcEnergy { get; private set; } = @Default;
-                public Func<double, double> CalcExtra { get; private set; } = @Default;
-                public CostProperties Soft(CostType costType)
-                {
-                    SoftCost = costType;
-                    return this;
-                }
-                public CostProperties Reverse(CostType costType) { 
-                    ReverseCost = costType;
-                    return this;
-                }
-                public CostProperties Threshold(CostType costType)
-                {
-                    ThresholdCost = costType;
-                    return this;
-                }
-                public CostProperties Percent(CostType costType)
-                {
-                    PercentCost = costType;
-                    return this;
-                }
-                public CostProperties DynamicHp(Func<double, double> func)
-                {
-                    CalcHp = func ?? @Default;
-                    return this;
-                }
-                public CostProperties DynamicMana(Func<double, double> func)
-                {
-                    CalcMana = func ?? @Default;
-                    return this;
-                }
-                public CostProperties DynamicEnergy(Func<double, double> func)
-                {
-                    CalcEnergy = func ?? @Default;
-                    return this;
-                }
-                public CostProperties DynamicExtra(Func<double, double> func)
-                {
-                    CalcExtra = func ?? @Default;
-                    return this;
-                }
-            }
+            Settings = settings;
+            Costs.AddRange(costs);
         }
-        internal class AbilitySettings : ICloneable
+        // rewrite #5 gazillion lmfao
+        internal struct AbilityCost
         {
-            public bool RepeatsTurn { get; private set; }
-            public AbilitySettings(bool repeats = false)
-            {
-                RepeatsTurn = repeats;
-            }
-            object ICloneable.Clone()
-            {
-                return MemberwiseClone();
-            }
-            public AbilitySettings Repeat(bool val)
-            {
-                RepeatsTurn = val;
-                return this;
-            }
+            public double amount;
+            public Pools currency;
+            public CostProperties props;
+        }
+        internal struct AbilitySettings
+        {
+            public bool repeatsTurn;
         }
         [Flags]
-        public enum CostType
+        public enum Properties
         {
-            hp =        1 << 0,   // 1
-            mana =      1 << 1,   // 2
-            energy =    1 << 2,   // 4
-            extra =     1 << 3,   // 8
+            repeatsTurn   = 1 << 0,
+
         }
-        protected AbilityCost Cost { get; set; }
-        public AbilityCost GetCost()
+        [Flags]
+        public enum CostProperties
         {
-            return Cost;
+            soft =      1 << 0,
+            reverse =   1 << 1,
+            keep =      1 << 2,
         }
         private Func<Fighter, int> Effect { get; set; }
         private Action<Fighter> Display { get; set; }

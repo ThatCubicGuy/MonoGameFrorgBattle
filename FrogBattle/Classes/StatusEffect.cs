@@ -1,5 +1,7 @@
-﻿using System;
+﻿using Microsoft.Xna.Framework.Graphics;
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,47 +12,152 @@ namespace FrogBattle.Classes
     // shield statuseffects will only ever have one shield effect, but it feels weird to add this
     // special case and leave it as is. maybe i could add different kinds of effects, but then
     // that's redundant. idk tbh.
-    internal class StatusEffect
+    internal class StatusEffect : ICloneable
     {
-        private readonly List<IEffect> effects;
-        public List<IEffect> Effects { get { return effects; } }
-    }
-    internal interface IEffect;
-    //internal abstract class Effect : IEffect
-    //{
-    //    public enum EffectType
-    //    {
-    //        CUSTOM,
-    //        // here we also do some thinking. do we separate stat modifiers and damage modifiers? idfk.
-    //    }
-    //}
-    // after adding the IModifier interface i'm tempted to split even more stuff tbh. could end up cool?
-    internal class StatModifier : IModifier<StatModifier.StatType>
-    {
-        public enum StatType
+        protected List<Modifier> modifiers;
+        protected List<Adder> adders;
+        public readonly uint maxStacks;
+        public readonly Properties props;
+        public StatusEffect(uint maxStacks, Properties props, Texture2D icon, params IEffect[] effects)
         {
-            Atk,
-            Def,
-            Spd,
-            EffectHitRate,
-            EffectRES,
-            AllTypeRES,
+            this.maxStacks = maxStacks;
+            this.props = props;
+            Icon = icon;
+            modifiers = (List<Modifier>)effects.ToList().OfType<Modifier>();
+            adders = (List<Adder>)effects.ToList().OfType<Adder>();
         }
-        public StatType Property { get; private set; }
-        public double Amount { get; private set; }
-        public Operator Op { get; }
-    }
-    internal class MiscModifier : IModifier<MiscModifier.MiscType>
-    {
-        public enum MiscType
+        public StatusEffect(uint maxStacks, Properties props, Texture2D icon, params Modifier[] effects)
         {
-            ManaCost,
-            ManaRegen,
-            IncomingHealing,
-            OutgoingHealing,
+            this.maxStacks = maxStacks;
+            this.props = props;
+            Icon = icon;
+            modifiers = [.. effects];
         }
-        public MiscType Property { get; private set; }
-        public double Amount  { get; private set; }
-        public Operator Op { get; private set; }
+        public StatusEffect(uint maxStacks, Properties props, Texture2D icon, params Adder[] effects)
+        {
+            this.maxStacks = maxStacks;
+            this.props = props;
+            Icon = icon;
+            adders = [.. effects];
+        }
+        public object Clone()
+        {
+            return new StatusEffect(maxStacks, props, Icon, [..adders.GetRange(0, adders.Count), ..modifiers.GetRange(0, modifiers.Count)]);
+        }
+        public virtual bool AddStacks(uint stacks)
+        {
+            if (Stacks == maxStacks) return false;
+            Stacks += stacks;
+            if (Stacks > maxStacks) Stacks = maxStacks;
+            return true;
+        }
+        public Texture2D Icon { get; private set; }
+        public uint Stacks { get; private set; }
+        [Flags] public enum Properties
+        {
+            None,
+            Unremovable,
+            Hidden,
+        }
+        internal class Modifier : IEffect
+        {
+            public Modifier(Stats attrib, double amount, Operators operation)
+            {
+                Attribute = attrib;
+                Amount = amount;
+                Op = operation;
+            }
+            public string Name { get; }
+            public Stats Attribute { get; }
+            public double Amount { get; set; }
+            public Operators Op { get; }
+        }
+        internal class Adder : IEffect
+        {
+            public Adder(Pools attrib, double amount)
+            {
+                Attribute = attrib;
+                Amount = amount;
+            }
+            public string Name { get; }
+            public Pools Attribute { get; }
+            public double Amount { get; set; }
+        }
+        /// <summary>
+        /// Every effect that this instance of <see cref="StatusEffect"/> has.
+        /// </summary>
+        public IEnumerable<IEffect> Effects
+        {
+            get
+            {
+                return modifiers.AsEnumerable<IEffect>().Concat(adders.AsEnumerable<IEffect>());
+            }
+        }
+        /// <summary>
+        /// Searches <see cref="modifiers"/> for all modifiers.
+        /// </summary>
+        /// <returns>All modifiers that this StatusEffect encompasses.</returns>
+        public IEnumerable<Modifier> GetModifiers()
+        {
+            return modifiers;
+        }
+        /// <summary>
+        /// Searches <see cref="modifiers"/> for all modifiers that match the given predicate.
+        /// </summary>
+        /// <param name="predicate">The condition that a <see cref="Modifier"/> must match.</param>
+        /// <returns>An enumerable of modifiers that match the given predicate.</returns>
+        public IEnumerable<Modifier> GetModifiers(Predicate<Modifier> predicate)
+        {
+            return modifiers.FindAll(predicate);
+        }
+        /// <summary>
+        /// Searches <see cref="modifiers"/> for all modifiers that modify <paramref name="stat"/>.
+        /// </summary>
+        /// <param name="stat"></param>
+        /// <returns>An enumerable of modifiers that affect <paramref name="stat"/>.</returns>
+        public IEnumerable<Modifier> GetModifiers(Stats stat)
+        {
+            return modifiers.FindAll((item) => item.Attribute == stat);
+        }
+        public IEnumerable<Adder> GetAdders()
+        {
+            return adders;
+        }
+    }
+    internal class Shield : StatusEffect
+    {
+        private double maxValue;
+        private Adder shield;
+        public Shield(double hp, double maxValue, Properties props, Texture2D icon, params IEffect[] extraModifiers) : base(1, props, icon, extraModifiers.Prepend(new Adder(Pools.Shield, hp)).ToArray())
+        {
+            this.maxValue = maxValue;
+            shield = adders.First();
+        }
+        public double ReduceShield(double amount)
+        {
+            return Math.Max(0, -(shield.Amount -= amount));
+        }
+        public double GetShield()
+        {
+            return shield.Amount;
+        }
+    }
+    internal class Barrier : StatusEffect
+    {
+        private uint maxCount;
+        private Adder barrier;
+        public Barrier(int count, uint maxCount, Properties props, Texture2D icon, params IEffect[] extraModifiers) : base(1, props, icon, extraModifiers.Prepend(new Adder(Pools.Barrier, count)).ToArray())
+        {
+            this.maxCount = maxCount;
+            barrier = adders.First();
+        }
+        public bool ReduceBarrier(uint amount)
+        {
+            return (barrier.Amount -= 1) <= 0;
+        }
+        public double GetBarrier()
+        {
+            return barrier.Amount;
+        }
     }
 }
