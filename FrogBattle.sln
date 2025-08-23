@@ -5,6 +5,8 @@ VisualStudioVersion = 17.11.35327.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FrogBattle", "FrogBattle\FrogBattle.csproj", "{64361FBE-E6AB-4EF0-A1B3-310DB829FB06}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestPlace", "TestPlace\TestPlace.csproj", "{ED26FEA4-8D15-499D-B5F3-ABD580526B1F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{64361FBE-E6AB-4EF0-A1B3-310DB829FB06}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{64361FBE-E6AB-4EF0-A1B3-310DB829FB06}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{64361FBE-E6AB-4EF0-A1B3-310DB829FB06}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ED26FEA4-8D15-499D-B5F3-ABD580526B1F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ED26FEA4-8D15-499D-B5F3-ABD580526B1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ED26FEA4-8D15-499D-B5F3-ABD580526B1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ED26FEA4-8D15-499D-B5F3-ABD580526B1F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

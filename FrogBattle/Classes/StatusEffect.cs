@@ -18,7 +18,7 @@ namespace FrogBattle.Classes
         protected List<Adder> adders;
         public readonly uint maxStacks;
         public readonly Properties props;
-        public StatusEffect(uint maxStacks, Properties props, Texture2D icon, params IEffect[] effects)
+        public StatusEffect(Fighter src, uint maxStacks, Properties props, Texture2D icon, params IEffect[] effects)
         {
             this.maxStacks = maxStacks;
             this.props = props;
@@ -26,14 +26,14 @@ namespace FrogBattle.Classes
             modifiers = (List<Modifier>)effects.ToList().OfType<Modifier>();
             adders = (List<Adder>)effects.ToList().OfType<Adder>();
         }
-        public StatusEffect(uint maxStacks, Properties props, Texture2D icon, params Modifier[] effects)
+        public StatusEffect(Fighter src, uint maxStacks, Properties props, Texture2D icon, params Modifier[] effects)
         {
             this.maxStacks = maxStacks;
             this.props = props;
             Icon = icon;
             modifiers = [.. effects];
         }
-        public StatusEffect(uint maxStacks, Properties props, Texture2D icon, params Adder[] effects)
+        public StatusEffect(Fighter src, uint maxStacks, Properties props, Texture2D icon, params Adder[] effects)
         {
             this.maxStacks = maxStacks;
             this.props = props;
@@ -42,7 +42,7 @@ namespace FrogBattle.Classes
         }
         public object Clone()
         {
-            return new StatusEffect(maxStacks, props, Icon, [..adders.GetRange(0, adders.Count), ..modifiers.GetRange(0, modifiers.Count)]);
+            return new StatusEffect(Source, maxStacks, props, Icon, [..adders.GetRange(0, adders.Count), ..modifiers.GetRange(0, modifiers.Count)]);
         }
         public virtual bool AddStacks(uint stacks)
         {
@@ -53,11 +53,14 @@ namespace FrogBattle.Classes
         }
         public Texture2D Icon { get; private set; }
         public uint Stacks { get; private set; }
+        public Fighter Source { get; }
         [Flags] public enum Properties
         {
             None,
             Unremovable,
             Hidden,
+            StackTurns,
+            IndependentStackDuration,
         }
         internal class Modifier : IEffect
         {
@@ -67,9 +70,10 @@ namespace FrogBattle.Classes
                 Amount = amount;
                 Op = operation;
             }
-            public string Name { get; }
+            public StatusEffect Parent { get; private set; }
+            public string Name { get => "effect.type." + Attribute.ToString(); }
             public Stats Attribute { get; }
-            public double Amount { get; set; }
+            public double Amount { get; }
             public Operators Op { get; }
         }
         internal class Adder : IEffect
@@ -79,9 +83,23 @@ namespace FrogBattle.Classes
                 Attribute = attrib;
                 Amount = amount;
             }
-            public string Name { get; }
+            public StatusEffect Parent { get; private set; }
+            public string Name { get => "effect.type." + Attribute.ToString(); }
             public Pools Attribute { get; }
             public double Amount { get; set; }
+        }
+        internal class DamageOverTime : IEffect
+        {
+            private double _ratio;
+            public DamageOverTime(Stats attrib, double ratio)
+            {
+                Attribute = attrib;
+                _ratio = ratio;
+            }
+            public StatusEffect Parent { get; private set; }
+            public string Name { get => "effect.type." + Attribute.ToString(); }
+            public Stats Attribute { get; }
+            public double Amount { get => _ratio * Parent.Source.Resolve(Attribute); }
         }
         /// <summary>
         /// Every effect that this instance of <see cref="StatusEffect"/> has.
@@ -128,7 +146,7 @@ namespace FrogBattle.Classes
     {
         private double maxValue;
         private Adder shield;
-        public Shield(double hp, double maxValue, Properties props, Texture2D icon, params IEffect[] extraModifiers) : base(1, props, icon, extraModifiers.Prepend(new Adder(Pools.Shield, hp)).ToArray())
+        public Shield(Fighter src, double hp, double maxValue, Properties props, Texture2D icon, params IEffect[] extraModifiers) : base(src, 1, props, icon, extraModifiers.Prepend(new Adder(Pools.Shield, hp)).ToArray())
         {
             this.maxValue = maxValue;
             shield = adders.First();
@@ -146,14 +164,14 @@ namespace FrogBattle.Classes
     {
         private uint maxCount;
         private Adder barrier;
-        public Barrier(int count, uint maxCount, Properties props, Texture2D icon, params IEffect[] extraModifiers) : base(1, props, icon, extraModifiers.Prepend(new Adder(Pools.Barrier, count)).ToArray())
+        public Barrier(Fighter src, int count, uint maxCount, Properties props, Texture2D icon, params IEffect[] extraModifiers) : base(src, 1, props, icon, extraModifiers.Prepend(new Adder(Pools.Barrier, count)).ToArray())
         {
             this.maxCount = maxCount;
             barrier = adders.First();
         }
         public bool ReduceBarrier(uint amount)
         {
-            return (barrier.Amount -= 1) <= 0;
+            return (barrier.Amount -= amount) <= 0;
         }
         public double GetBarrier()
         {

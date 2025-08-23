@@ -7,10 +7,11 @@ using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
-    public interface IEffect
+    internal interface IEffect
     {
-        string Name { get; }
-        public double Amount { get; set; }
+        public StatusEffect Parent { get; }
+        public string Name { get; }
+        public double Amount { get; }
     }
     public enum DamageTypes
     {

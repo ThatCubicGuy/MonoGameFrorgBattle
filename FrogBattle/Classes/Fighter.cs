@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -97,6 +98,22 @@ namespace FrogBattle.Classes
             }
         }
         #endregion
+        #region Pools
+        public double Hp
+        {
+            get
+            {
+                return CurrentHp;
+            }
+        }
+        public double Shield
+        {
+            get
+            {
+                return GetEffects((x) => x is Shield);
+            }
+        }
+        #endregion
         // i need to understand how event work dawg
         //public EventHandler<EventArgs> HpChanged;
         private void StartOfTurnChecks()
@@ -107,20 +124,17 @@ namespace FrogBattle.Classes
         {
             // Effect Ticks
         }
-        private bool CanUseAbility(Ability x)
+        public IEnumerator<Damage> OutgoingDamage(Stats source, double ratio, Damage.Properties props, params uint[] split)
         {
-            foreach (var cost in x.Costs)
+            if (split.Length == 0) yield return new(this.Resolve(source) * ratio, props);
+            else
             {
-                if ((cost.props & Ability.CostProperties.soft) != 0) continue;
-                switch (cost.currency)
+                double sum = split.Sum((x) => (double)x);
+                foreach (int i in split)
                 {
-
+                    yield return new(this.Resolve(source) * i * ratio / sum, props);
                 }
             }
-        }
-        public Damage OutgoingDamage(Stats source, double ratio, uint split = 1)
-        {
-            return new(source.Resolve(this) * ratio, new(), Damage.Flags.none);
         }
         /// <summary>
         /// Searches <see cref="StatusEffects"/> for all effects.
@@ -146,8 +160,7 @@ namespace FrogBattle.Classes
         /// <returns>An enumerable of StatusEffects that modify <paramref name="stat"/></returns>
         public IEnumerable<StatusEffect> GetEffects(Stats stat)
         {
-            return StatusEffects.FindAll(new((item) => item.GetModifiers().Any((eff) => eff.Attribute == stat)));
+            return StatusEffects.FindAll((item) => item.GetModifiers().Any((eff) => eff.Attribute == stat));
         }
-
     }
 }

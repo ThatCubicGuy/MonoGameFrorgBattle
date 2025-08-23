@@ -10,12 +10,10 @@ namespace FrogBattle.Classes
     internal class Damage : ICloneable
     {
         readonly Properties _properties;
-        readonly Flags _flags;
-        public Damage(double amount, Properties props, Flags flags)
+        public Damage(double amount, Properties props)
         {
             Amount = amount;
             _properties = props;
-            _flags = flags;
         }
         public double Amount { get; private set; }
         public object Clone()
@@ -27,11 +25,7 @@ namespace FrogBattle.Classes
             readonly double defenseIgnore;
             readonly double typeResPen;
             readonly DamageTypes type;
-        }
-        [Flags] public enum Flags
-        {
-            none,
-            crit,
+            readonly bool crit;
         }
     }
 }
