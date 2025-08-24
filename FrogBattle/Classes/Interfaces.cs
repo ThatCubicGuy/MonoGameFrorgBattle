@@ -31,6 +31,7 @@ namespace FrogBattle.Classes
         Atk,
         Def,
         Spd,
+        Dex,
         EffectHitRate,
         EffectRES,
         AllTypeRES,

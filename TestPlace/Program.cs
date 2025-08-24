@@ -10,7 +10,7 @@ namespace TestPlace
             else
             {
                 double sum = split.Sum((x) => (double)x);
-                foreach (int i in split)
+                foreach (uint i in split)
                 {
                     yield return i * ratio / sum;
                 }

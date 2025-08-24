@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
-    internal class Damage : ICloneable
+    internal class Damage
     {
         readonly Properties _properties;
         public Damage(double amount, Properties props)
@@ -16,9 +16,9 @@ namespace FrogBattle.Classes
             _properties = props;
         }
         public double Amount { get; private set; }
-        public object Clone()
+        public Damage Clone()
         {
-            return MemberwiseClone();
+            return MemberwiseClone() as Damage;
         }
         public struct Properties
         {
@@ -29,3 +29,4 @@ namespace FrogBattle.Classes
         }
     }
 }
+// order of effects for damage: atk -> type bonus -> crit -> dmg bonus -> type res -> def -> dmg reduction ?

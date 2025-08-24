@@ -46,6 +46,27 @@ namespace FrogBattle.Classes
         {
             return source.Resolve(stat);
         }
+        public static double Resolve(this Fighter source, Pools stat)
+        {
+            return stat switch
+            {
+                Pools.Hp => source.Hp,
+                Pools.Mana => source.Mana,
+                Pools.Energy => source.Energy,
+                Pools.Special => source.Special,
+                Pools.Shield => source.Shield,
+                Pools.Barrier => source.Barrier,
+                _ => 0
+            };
+        }
+        public static double Resolve(this Pools pool, Fighter source)
+        {
+            return source.Resolve(pool);
+        }
+        public static string ToTranslatable(this Enum @enum)
+        {
+            return @enum.ToString().ToLower()[0] + @enum.ToString()[1..];
+        }
     }
     internal static class EnumerableExtensions
     {

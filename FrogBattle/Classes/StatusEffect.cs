@@ -8,174 +8,101 @@ using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
-    // really not sure what the best course of action is here.
-    // shield statuseffects will only ever have one shield effect, but it feels weird to add this
-    // special case and leave it as is. maybe i could add different kinds of effects, but then
-    // that's redundant. idk tbh.
-    internal class StatusEffect : ICloneable
+    internal abstract class StatusEffect
     {
-        protected List<Modifier> modifiers;
-        protected List<Adder> adders;
-        public readonly uint maxStacks;
-        public readonly Properties props;
-        public StatusEffect(Fighter src, uint maxStacks, Properties props, Texture2D icon, params IEffect[] effects)
+        private static uint uid_count = 0;
+        private readonly uint uid;
+        protected Fighter source;
+        public uint turns;
+        public uint maxStacks;
+        public Props properties;
+        public List<Effect> effects;
+        
+        public StatusEffect(uint turns, uint maxStacks, Props properties, params Effect[] effects)
         {
+            this.turns = turns;
             this.maxStacks = maxStacks;
-            this.props = props;
-            Icon = icon;
-            modifiers = (List<Modifier>)effects.ToList().OfType<Modifier>();
-            adders = (List<Adder>)effects.ToList().OfType<Adder>();
+            this.properties = properties;
+            this.effects = [.. effects];
+            uid = uid_count++;
         }
-        public StatusEffect(Fighter src, uint maxStacks, Properties props, Texture2D icon, params Modifier[] effects)
+        public StatusEffect(StatusEffect other) : this(other.turns, other.maxStacks, other.properties, other.effects.ToArray())
         {
-            this.maxStacks = maxStacks;
-            this.props = props;
-            Icon = icon;
-            modifiers = [.. effects];
+            source = other.source;
+            uid = other.uid;
+            uid_count -= 1;
         }
-        public StatusEffect(Fighter src, uint maxStacks, Properties props, Texture2D icon, params Adder[] effects)
+
+        public string Name { get; set; }
+        
+        [Flags] public enum Props
         {
-            this.maxStacks = maxStacks;
-            this.props = props;
-            Icon = icon;
-            adders = [.. effects];
+            None        = 1 << 0,
+            Debuff      = 1 << 1,
+            Unremovable = 1 << 2,
+            Hidden      = 1 << 3,
+            Infinite    = 1 << 4,
+            StartTick   = 1 << 5,
+            StackTurns  = 1 << 6,
         }
-        public object Clone()
+
+        internal class Effect : IEffect
         {
-            return new StatusEffect(Source, maxStacks, props, Icon, [..adders.GetRange(0, adders.Count), ..modifiers.GetRange(0, modifiers.Count)]);
-        }
-        public virtual bool AddStacks(uint stacks)
-        {
-            if (Stacks == maxStacks) return false;
-            Stacks += stacks;
-            if (Stacks > maxStacks) Stacks = maxStacks;
-            return true;
-        }
-        public Texture2D Icon { get; private set; }
-        public uint Stacks { get; private set; }
-        public Fighter Source { get; }
-        [Flags] public enum Properties
-        {
-            None,
-            Unremovable,
-            Hidden,
-            StackTurns,
-            IndependentStackDuration,
-        }
-        internal class Modifier : IEffect
-        {
-            public Modifier(Stats attrib, double amount, Operators operation)
+            public Effect(StatusEffect parent, Stats stat, double amount, Operators op)
             {
-                Attribute = attrib;
+                Parent = parent;
+                Stat = stat;
                 Amount = amount;
-                Op = operation;
+                Op = op;
             }
-            public StatusEffect Parent { get; private set; }
-            public string Name { get => "effect.type." + Attribute.ToString(); }
-            public Stats Attribute { get; }
+
+            public StatusEffect Parent { get; }
+            public string Name { get => "effect.type." + Stat.ToTranslatable(); }
+            public Stats Stat { get; }
             public double Amount { get; }
             public Operators Op { get; }
         }
-        internal class Adder : IEffect
+
+        public bool Is(Props p)
         {
-            public Adder(Pools attrib, double amount)
-            {
-                Attribute = attrib;
-                Amount = amount;
-            }
-            public StatusEffect Parent { get; private set; }
-            public string Name { get => "effect.type." + Attribute.ToString(); }
-            public Pools Attribute { get; }
-            public double Amount { get; set; }
+            return (properties & p) != 0;
         }
-        internal class DamageOverTime : IEffect
+        public bool Expire()
         {
-            private double _ratio;
-            public DamageOverTime(Stats attrib, double ratio)
-            {
-                Attribute = attrib;
-                _ratio = ratio;
-            }
-            public StatusEffect Parent { get; private set; }
-            public string Name { get => "effect.type." + Attribute.ToString(); }
-            public Stats Attribute { get; }
-            public double Amount { get => _ratio * Parent.Source.Resolve(Attribute); }
+            if (Is(Props.Infinite) || (--turns > 0)) return false;
+            else return true;
         }
-        /// <summary>
-        /// Every effect that this instance of <see cref="StatusEffect"/> has.
-        /// </summary>
-        public IEnumerable<IEffect> Effects
+        public string Display()
         {
-            get
-            {
-                return modifiers.AsEnumerable<IEffect>().Concat(adders.AsEnumerable<IEffect>());
-            }
+            char a = Is(Props.Debuff) ? '\u2193' : '\u2191';
+            if (Is(Props.Infinite)) return $"{a}[{Name}]";
+            else return $"{a}[{Name} ({turns})]";
         }
-        /// <summary>
-        /// Searches <see cref="modifiers"/> for all modifiers.
-        /// </summary>
-        /// <returns>All modifiers that this StatusEffect encompasses.</returns>
-        public IEnumerable<Modifier> GetModifiers()
+    }
+    internal class Modifier : StatusEffect
+    {
+        public Modifier(uint turns, uint maxStacks, Props properties) : base(turns, maxStacks, properties)
         {
-            return modifiers;
+            // take a break bro holy shit 04:18
         }
-        /// <summary>
-        /// Searches <see cref="modifiers"/> for all modifiers that match the given predicate.
-        /// </summary>
-        /// <param name="predicate">The condition that a <see cref="Modifier"/> must match.</param>
-        /// <returns>An enumerable of modifiers that match the given predicate.</returns>
-        public IEnumerable<Modifier> GetModifiers(Predicate<Modifier> predicate)
+        public Modifier AddModifier(Stats stat, double amount, Operators op)
         {
-            return modifiers.FindAll(predicate);
-        }
-        /// <summary>
-        /// Searches <see cref="modifiers"/> for all modifiers that modify <paramref name="stat"/>.
-        /// </summary>
-        /// <param name="stat"></param>
-        /// <returns>An enumerable of modifiers that affect <paramref name="stat"/>.</returns>
-        public IEnumerable<Modifier> GetModifiers(Stats stat)
-        {
-            return modifiers.FindAll((item) => item.Attribute == stat);
-        }
-        public IEnumerable<Adder> GetAdders()
-        {
-            return adders;
+            effects = effects.Append(new(this, stat, amount, op)).ToList();
+            return this;
         }
     }
     internal class Shield : StatusEffect
     {
-        private double maxValue;
-        private Adder shield;
-        public Shield(Fighter src, double hp, double maxValue, Properties props, Texture2D icon, params IEffect[] extraModifiers) : base(src, 1, props, icon, extraModifiers.Prepend(new Adder(Pools.Shield, hp)).ToArray())
+        private double shield;
+        private double healPerTurn;
+        public Shield(uint turns, uint maxStacks, Props properties) : base(turns, maxStacks, properties)
         {
-            this.maxValue = maxValue;
-            shield = adders.First();
         }
-        public double ReduceShield(double amount)
+        public Shield SetShield(double shield, double healPerTurn)
         {
-            return Math.Max(0, -(shield.Amount -= amount));
-        }
-        public double GetShield()
-        {
-            return shield.Amount;
-        }
-    }
-    internal class Barrier : StatusEffect
-    {
-        private uint maxCount;
-        private Adder barrier;
-        public Barrier(Fighter src, int count, uint maxCount, Properties props, Texture2D icon, params IEffect[] extraModifiers) : base(src, 1, props, icon, extraModifiers.Prepend(new Adder(Pools.Barrier, count)).ToArray())
-        {
-            this.maxCount = maxCount;
-            barrier = adders.First();
-        }
-        public bool ReduceBarrier(uint amount)
-        {
-            return (barrier.Amount -= amount) <= 0;
-        }
-        public double GetBarrier()
-        {
-            return barrier.Amount;
+            this.shield = shield;
+            this.healPerTurn = healPerTurn;
+            return this;
         }
     }
 }
