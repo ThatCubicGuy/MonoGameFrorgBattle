@@ -4,57 +4,106 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
-using static FrogBattle.Classes.Ability;
 
 namespace FrogBattle.Classes
 {
-    internal class Ability
+    internal abstract class Ability
     {
-        private Fighter source;
-        public AbilitySettings Settings { get; set; }
-        public List<AbilityCost> Costs = [];
-        public Ability(Fighter source, AbilitySettings settings, params AbilityCost[] costs)
+        private readonly Character source;
+        private readonly Dictionary<Pools, Cost> costs = [];
+        public Ability(Character source, AbilityProperties settings, params Cost[] costs)
         {
             this.source = source;
             Settings = settings;
-            Costs = [.. costs];
+            foreach (var cost in costs)
+            {
+                this.costs[cost.Currency] = cost;
+            }
         }
-        // rewrite #6 gazillion lmfao
-        internal struct AbilityCost
+        /// <summary>
+        /// Initialise the current ability with at least one cost.
+        /// </summary>
+        /// <param name="costs">Costs to affix to the ability.</param>
+        /// <exception cref="ArgumentNullException">Thrown when trying to initialise with no costs.</exception>
+        protected void Init(params Cost[] costs)
         {
-            public double amount;
-            public Pools currency;
-            public CostProperties props;
+            if (costs.Length == 0) throw new ArgumentNullException(nameof(costs), "Unable to have a costless ability.");
+            foreach (var item in costs)
+            {
+                this.costs[item.Currency] = item;
+            }
         }
-        [Flags]
-        public enum AbilitySettings
+        // rewrite #7 gazillion lmfao
+        internal record AbilityProperties
+        (
+            string name,
+            AbilitySettings settings
+        );
+        internal class Cost : ISubcomponent<Ability>
         {
-            repeatsTurn = 1 << 0,
+            public Cost(Ability parent, Pools currency, double amount, CostProperties properties)
+            {
+                Parent = parent;
+                Amount = amount;
+                Currency = currency;
+                Properties = properties;
+            }
+
+            public Ability Parent { get; }
+            public Pools Currency { get; }
+            public double Amount { get; }
+            public Operators Op { get; }
+            public CostProperties Properties { get; }
         }
-        [Flags]
-        public enum CostProperties
+        [Flags] public enum AbilitySettings
         {
-            soft = 1 << 0,
-            reverse = 1 << 1,
-            keep = 1 << 2,
+            None = 0,
+            RepeatsTurn = 1 << 0,
         }
-        private Func<Fighter, int> Effect { get; set; }
-        private Action<Fighter> Display { get; set; }
-        public void Use()
+        [Flags] public enum CostProperties
         {
-            // no idea lmao, how do you display things
+            None = 0,
+            Soft    = 1 << 0,
+            Reverse = 1 << 1,
+        }
+        public StringBuilder Text { get; } = new StringBuilder();
+        public AbilityProperties Settings { get; set; }
+        private List<Action<Character, Character>> Effects { get; set; }
+        private Action<Character> Display { get; set; }
+        public bool TryUse(Character target)
+        {
+            foreach (var cost in costs)
+            {
+                if (!source.CanAfford(cost.Value)) return false;
+            }
+            foreach (var cost in costs)
+            {
+                source.Expend(cost.Value);
+            }
+            foreach (var effect in Effects)
+            {
+                effect(source, target);
+            }
+            return true;
         }
     }
-    internal class AbilityBuilder
+    internal static class AbilityActions
     {
-        public AbilityBuilder()
+        public static Action<Character, Character> SingleTargetDamage(this Ability ability, Stats stat, double ratio, double hitRate, Damage.Properties props, params uint[] split)
         {
-
-        }
-        public AbilityBuilder SingleTargetDamage(Stats source, double ratio, Damage.Properties props, params uint[] split)
-        {
-            
-            return this;
+            return (source, target) =>
+            {
+                double snap = FrorgBattle.RNG;
+                if (snap < hitRate)
+                {
+                    if (snap < hitRate - Math.Max(0, target.GetStat(Stats.Dex) / 100))
+                    {
+                        source.OutgoingDamage(stat, ratio, props, split);
+                    }
+                    else ability.Text.AppendLine("character.generic.dodge");
+                }
+                else ability.Text.AppendLine("character.generic.miss");
+            };
         }
     }
 }

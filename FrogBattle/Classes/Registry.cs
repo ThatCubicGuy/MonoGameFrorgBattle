@@ -8,12 +8,24 @@ namespace FrogBattle.Classes
 {
     public static class Registry
     {
-        public static uint DefaultHp = 40000;
-        public static uint DefaultAtk = 1000;
-        public static uint DefaultDef = 300;
-        public static uint DefaultSpd = 100;
-        public static uint DefaultDex = 0;
-        public static uint DefaultMaxMana = 100;
-        public static uint DefaultMaxEnergy = 120;
+        public static readonly Dictionary<Stats, double> DefaultStats =
+            new Dictionary<Stats, double>()
+            {
+                { Stats.MaxHp, 40000 },
+                { Stats.MaxMana, 100 },
+                { Stats.MaxEnergy, 120 },
+                { Stats.Atk, 1000 },
+                { Stats.Def, 300 },
+                { Stats.Spd, 100 },
+                { Stats.Dex, 0 },
+                { Stats.EffectHitRate, 1 },
+                { Stats.EffectRES,0 },
+                { Stats.AllTypeRES, 0 },
+                { Stats.ManaCost, 1 },
+                { Stats.ManaRegen, 1 },
+                { Stats.IncomingHealing, 1 },
+                { Stats.OutgoingHealing, 1 },
+                { Stats.ShieldToughness, 1 }
+            };
     }
 }

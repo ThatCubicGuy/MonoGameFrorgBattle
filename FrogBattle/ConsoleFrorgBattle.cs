@@ -9,6 +9,7 @@ namespace FrogBattle
 {
     internal class ConsoleFrorgBattle
     {
+        public static StringBuilder BattleText = new();
         public int Run()
         {
             if (OperatingSystem.IsOSPlatform("windows")) Console.WindowWidth = 160;

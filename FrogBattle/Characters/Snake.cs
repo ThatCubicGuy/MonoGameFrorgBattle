@@ -7,11 +7,19 @@ using FrogBattle.Classes;
 
 namespace FrogBattle.Characters
 {
-    internal class Snake : Fighter
+    internal class Snake : Character
     {
-        public Snake(string name) : base(name, Registry.DefaultHp, Registry.DefaultAtk, Registry.DefaultDef, Registry.DefaultSpd, Registry.DefaultDex, Registry.DefaultMaxMana, Registry.DefaultMaxEnergy)
+        private readonly List<Ability> abilities = [];
+        public Snake(string name) : base(name)
         {
-
+            abilities.Add(new ThrowGrenade(this));
+        }
+        private class ThrowGrenade : Ability
+        {
+            public ThrowGrenade(Character source) : base(source, new(typeof(ThrowGrenade).Name, AbilitySettings.None))
+            {
+                Init(new Cost(this, Pools.Mana, 15, CostProperties.None));
+            }
         }
     }
 }

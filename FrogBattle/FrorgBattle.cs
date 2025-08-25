@@ -23,7 +23,10 @@ namespace FrogBattle
         Texture2D battleui;
 
         private static readonly Random rand = new();
-        public static double RNG 
+        /// <summary>
+        /// Returns a random floating-point number that is greater than or equal to 0.0, and less than 1.0.
+        /// </summary>
+        public static double RNG
         {
             get
             {
@@ -44,7 +47,7 @@ namespace FrogBattle
         protected override void Initialize()
         {
             // TODO: Add your initialization logic here
-
+            Window.Title = "Frorg Battle";
             base.Initialize();
         }
 
@@ -64,6 +67,8 @@ namespace FrogBattle
                 Exit();
             if (Keyboard.GetState().IsKeyDown(Keys.Space))
                 Exit();
+            if (Keyboard.GetState().IsKeyDown(Keys.F4))
+                // how tf do i fullscreen
 
             // TODO: Add your update logic here
 
@@ -84,8 +89,7 @@ namespace FrogBattle
             _spriteBatch.Draw(resources1, Tools.ChunkVec(1, 1), Tools.Chunk(15, 4), Color.White);
             _spriteBatch.Draw(resources1, Tools.ChunkVec(2, 1), Tools.Chunk(15, 5), Color.White);
             _spriteBatch.Draw(hpbar, new Vector2(120, 70), Color.White);
-            _spriteBatch.Draw(battleui, new Vector2(0, 0), Color.White);
-            //_spriteBatch.Draw();
+            _spriteBatch.Draw(battleui, new Vector2((Window.ClientBounds.Width - battleui.Width) / 2, 0), Color.White);
             _spriteBatch.End();
 
             base.Draw(gameTime);

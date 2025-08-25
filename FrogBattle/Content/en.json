@@ -19,5 +19,12 @@
     "damage.type.bullet": "Bullet",
     "damage.type.blast": "Blast",
     "damage.type.magic": "Magic",
-    "character.generic.miss": "{1} dodged the attack!"
+    "damage.source.none": "Unknown",
+    "damage.source.attack": "Direct attack",
+    "damage.source.additional": "Additional damage",
+    "damage.source.followUp": "Follow-Up",
+    "damage.source.damageOverTime": "Damage Over Time",
+    "character.generic.miss": "{1} dodged the attack!",
+
+    "character.snake.ability.throwGrenade": "Throw grenade"
 }

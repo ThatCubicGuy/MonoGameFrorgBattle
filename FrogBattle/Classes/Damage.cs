@@ -9,7 +9,7 @@ namespace FrogBattle.Classes
 {
     internal class Damage
     {
-        readonly Properties _properties;
+        private readonly Properties _properties;
         public Damage(double amount, Properties props)
         {
             Amount = amount;
@@ -20,13 +20,15 @@ namespace FrogBattle.Classes
         {
             return MemberwiseClone() as Damage;
         }
-        public struct Properties
-        {
-            readonly double defenseIgnore;
-            readonly double typeResPen;
-            readonly DamageTypes type;
-            readonly bool crit;
-        }
+        public record Properties
+        (
+            DamageTypes type,
+            DamageSources source,
+            bool crit,
+            double critDamage = 1.5,
+            double defenseIgnore = 0,
+            double typeResPen = 0
+        );
     }
 }
 // order of effects for damage: atk -> type bonus -> crit -> dmg bonus -> type res -> def -> dmg reduction ?
