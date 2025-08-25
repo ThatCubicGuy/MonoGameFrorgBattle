@@ -17,23 +17,23 @@ namespace FrogBattle.Classes
         public uint turns;
         public uint maxStacks;
         public Props properties;
-        private readonly Dictionary<Stats, Modifier> modifiers = [];
+        private readonly Dictionary<object, Effect> effects = [];
         
-        public StatusEffect(uint turns, uint maxStacks, Props properties, params Modifier[] modifiers)
+        public StatusEffect(uint turns, uint maxStacks, Props properties, params Effect[] effects)
         {
             this.turns = turns;
             this.maxStacks = maxStacks;
             this.properties = properties;
-            foreach (var mod in modifiers)
+            foreach (var mod in effects)
             {
-                this.modifiers[mod.Stat] = mod;
+                this.effects[mod.GetKey()] = mod;
             }
             uid = uid_count;
             uid_count += 1;
         }
         public StatusEffect(StatusEffect other) : this(other.turns, other.maxStacks, other.properties)
         {
-            modifiers = new(other.modifiers);
+            effects = new(other.effects);
             source = other.source;
             uid = other.uid;
             uid_count -= 1;
@@ -61,19 +61,22 @@ namespace FrogBattle.Classes
             if (Is(Props.Infinite) || (--turns > 0)) return false;
             else return true;
         }
-        public StatusEffect AddModifier(Stats stat, double amount, Operators op)
+        public StatusEffect AddEffect(Effect effect)
         {
-            modifiers[stat] = new(this, stat, amount, op);
+            effects[effect.GetKey()] = effect;
             return this;
         }
-        public StatusEffect AddModifier(Modifier modifier)
+        public Dictionary<object, Effect> GetEffects()
         {
-            modifiers[modifier.Stat] = modifier;
-            return this;
+            return effects;
         }
-        public Dictionary<Stats, Modifier> GetModifiers()
+        public Dictionary<object, T> GetEffects<T>() where T : Effect
         {
-            return modifiers;
+            return effects.OfType<KeyValuePair<object, T>>().ToDictionary();
+        }
+        public Dictionary<object, Modifier> GetModifiers()
+        {
+            return (Dictionary<object, Modifier>)effects.OfType<KeyValuePair<object, Modifier>>();
         }
         public string Display()
         {
@@ -81,92 +84,99 @@ namespace FrogBattle.Classes
             if (Is(Props.Infinite)) return $"{a}[{Name}]";
             else return $"{a}[{Name} ({turns})]";
         }
-
-        internal class Modifier : ISubcomponent<StatusEffect>
+        internal abstract class Effect
         {
-            public Modifier(StatusEffect parent, Stats stat, double amount, Operators op)
+            public Effect(StatusEffect parent, bool buff)
             {
                 Parent = parent;
-                Stat = stat;
+                IsBuff = buff;
+            }
+            public StatusEffect Parent { get; }
+            public bool IsBuff { get; }
+            public string TranslationKey { get => "effect.type." + GetType().Name.camelCase(); }
+            public virtual string GetLocalizedText() => Localization.Translate(TranslationKey, GetFormatArgs());
+            public abstract object[] GetFormatArgs();
+            public abstract object GetKey();
+        }
+        internal class Modifier : Effect
+        {
+            public Modifier(StatusEffect parent, double amount, Stats stat, Operators op) : base(parent, (amount > 0) ^ Registry.IsHigherBetter(stat))
+            {
                 Amount = amount;
+                Stat = stat;
                 Op = op;
             }
-
-            public StatusEffect Parent { get; }
-            public string Name { get => "effect.type." + Stat.ToString().toCamelCase(); }
-            public Stats Stat { get; }
             public double Amount { get; }
             public Operators Op { get; }
+            public Stats Stat { get; }
+            public override object[] GetFormatArgs() => [Amount, Stat];
+            public override object GetKey() => Stat;
+
         }
-    }
-    internal class Shield : StatusEffect
-    {
-        private double shieldValue;
-        private double healPerTurn;
-        public Shield(uint turns, uint maxStacks, Props properties) : base(turns, maxStacks, properties)
+        internal class Shield : Effect
         {
+            public Shield(StatusEffect parent, double amount, DamageTypes? shieldType = null, double? healPerTurn = null) : base(parent, true)
+            {
+                if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount), "Shield value must be positive.");
+                Amount = amount;
+                ShieldType = shieldType;
+                Healing = healPerTurn;
+            }
+            public double Amount { get; }
+            public DamageTypes? ShieldType { get; }
+            public double? Healing { get; }
+            public override object[] GetFormatArgs()
+            {
+                // need to go through an intermediary step of deserialization before passing resolved string as argument
+                var addons = new List<string>();
+                if (ShieldType != null) addons.Add(Localization.Translate(TranslationKey + ".addon.type", ShieldType));
+                addons.Add(Localization.Translate(TranslationKey + ".addon"));
+                if (Healing != null) addons.Add(Localization.Translate(TranslationKey + ".addon.healing", Healing));
+                var addonText = string.Join(' ', addons);
+                return [Amount, addonText];
+            }
+            public override object GetKey() => typeof(Shield);
         }
-        public Shield SetShield(double shieldValue, double healPerTurn = 0)
+        internal class Barrier : Effect
         {
-            this.shieldValue = shieldValue;
-            this.healPerTurn = healPerTurn;
-            return this;
+            public Barrier(StatusEffect parent, uint count) : base(parent, true)
+            {
+                if (count == 0) throw new ArgumentOutOfRangeException(nameof(count), "Barrier count must be positive.");
+                Count = count;
+            }
+            public uint Count { get; }
+            public override object[] GetFormatArgs() => [Count];
+            public override object GetKey() => typeof(Barrier);
         }
-        public double GetShield()
+        internal class Drain : Effect
         {
-            return shieldValue;
+            public Drain(StatusEffect parent, double amount, Pools pool, Operators op) : base(parent, false)
+            {
+                if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount), "Drain value must be positive.");
+                if (pool == Pools.Hp) throw new ArgumentOutOfRangeException(nameof(pool));
+                Amount = amount;
+                Pool = pool;
+                Op = op;
+            }
+            public double Amount { get; }
+            public Operators Op { get; }
+            public Pools Pool { get; }
+            public override object[] GetFormatArgs() => [Amount, Pool];
+            public override object GetKey() => Pool;
         }
-        public double GetHealing()
+        internal class DamageOverTime : Effect
         {
-            return healPerTurn;
-        }
-    }
-    internal class Barrier : StatusEffect
-    {
-        private double barrierCount;
-        public Barrier(uint turns, uint maxStacks, Props properties) : base(turns, maxStacks, properties)
-        {
-        }
-        public Barrier SetShield(double barrierCount)
-        {
-            this.barrierCount = barrierCount;
-            return this;
-        }
-        public double GetBarrier()
-        {
-            return barrierCount;
-        }
-    }
-    internal class Drain : StatusEffect
-    {
-        private Damage.Properties damageProperties;
-        private readonly Dictionary<Pools, double> drainAmount = [];
-        public Drain(uint turns, uint maxStacks, Props properties, Damage.Properties damageProperties) : base(turns, maxStacks, properties)
-        {
-            this.damageProperties = damageProperties;
-        }
-        public Drain SetDrain(Pools damageTarget, double damageAmount)
-        {
-            drainAmount[damageTarget] = damageAmount;
-            return this;
-        }
-        public static Damage.Properties DrainProperties(double defenseIgnore, double typeResPen, DamageTypes type)
-        {
-            return new(crit: false, critDamage: 0, defenseIgnore: defenseIgnore, typeResPen: typeResPen, type: type, source: DamageSources.DamageOverTime);
-        }
-        public Drain SetDoT(double amount, Damage.Properties props = null)
-        {
-            drainAmount[Pools.Hp] = amount;
-            if (props != null) damageProperties = props with { crit = false, source = DamageSources.DamageOverTime };
-            return this;
-        }
-        public Damage GetDoT()
-        {
-            return new(drainAmount[Pools.Hp], damageProperties);
-        }
-        public double GetDrain(Pools damageTarget)
-        {
-            return drainAmount[damageTarget];
+            public DamageOverTime(StatusEffect parent, double amount, Operators op, Damage.Properties props) : base(parent, false)
+            {
+                Amount = amount;
+                Op = op;
+                Props = props with { crit = false, source = DamageSources.DamageOverTime };
+            }
+            public double Amount { get; }
+            public Operators Op { get; }
+            public Damage.Properties Props { get; }
+            public override object[] GetFormatArgs() => [Amount];
+            public override object GetKey() => typeof(DamageOverTime);
         }
     }
 }

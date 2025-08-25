@@ -18,6 +18,7 @@ namespace FrogBattle.Classes
                 { Stats.Def, 300 },
                 { Stats.Spd, 100 },
                 { Stats.Dex, 0 },
+                { Stats.HitRate, 0 },
                 { Stats.EffectHitRate, 1 },
                 { Stats.EffectRES,0 },
                 { Stats.AllTypeRES, 0 },
@@ -27,5 +28,11 @@ namespace FrogBattle.Classes
                 { Stats.OutgoingHealing, 1 },
                 { Stats.ShieldToughness, 1 }
             };
+        private static readonly HashSet<Stats> HigherIsWorse =
+        [
+            Stats.MaxEnergy,
+            Stats.ManaCost
+        ];
+        public static bool IsHigherBetter(Stats stat) => !HigherIsWorse.Contains(stat);
     }
 }

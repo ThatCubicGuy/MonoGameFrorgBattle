@@ -7,12 +7,6 @@ using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
-    internal interface ISubcomponent<T> where T : class
-    {
-        public T Parent { get; }
-        public double Amount { get; }
-        public Operators Op { get; }
-    }
     public enum DamageTypes
     {
         None,
@@ -37,15 +31,16 @@ namespace FrogBattle.Classes
         None,
         MaxHp,
         MaxMana,
-        MaxEnergy,
+        MaxEnergy,          // Positive = Bad
         Atk,
         Def,
         Spd,
         Dex,
+        HitRate,
         EffectHitRate,
         EffectRES,
         AllTypeRES,
-        ManaCost,
+        ManaCost,           // Positive = Bad
         ManaRegen,
         IncomingHealing,
         OutgoingHealing,
@@ -65,5 +60,14 @@ namespace FrogBattle.Classes
     {
         Additive,
         Multiplicative
+    }
+    public enum EffectType
+    {
+        Custom,
+        Modifier,
+        Shield,
+        Barrier,
+        Drain,
+        DoT
     }
 }

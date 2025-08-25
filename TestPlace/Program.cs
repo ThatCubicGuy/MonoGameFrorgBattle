@@ -17,10 +17,9 @@ namespace TestPlace
             //{
             //    Console.WriteLine(test.Current);
             //}
-            Child amogus = new();
-            Console.WriteLine(amogus.Name);
-            Parent amogi = new();
-            Console.WriteLine(amogi.Name);
+            double joe = 2.154356465;
+            double biden = 345;
+            Console.WriteLine("{0:0},{1:0.#}", joe, biden);
         }
         private class Parent
         {
@@ -62,6 +61,18 @@ namespace TestPlace
             if (stuff.Length == 0) return "gay";
             Console.WriteLine(stuff);
             return "done lmfao";
+        }
+        private class Tree
+        {
+            public Tree(Tree? current = null, Tree? left = null, Tree? right = null)
+            {
+                Left = left;
+                Middle = current;
+                Right = right;
+            }
+            public Tree? Left { get; set; }
+            public Tree? Middle { get; set; }
+            public Tree? Right { get; set; }
         }
     }
 }

@@ -26,8 +26,8 @@ namespace FrogBattle.Classes
             }
             set
             {
-                CurrentHp= value;
-                if (CurrentHp> GetStat(Stats.MaxHp)) CurrentHp = GetStat(Stats.MaxHp);
+                CurrentHp = value;
+                if (CurrentHp > GetStat(Stats.MaxHp)) CurrentHp = GetStat(Stats.MaxHp);
             }
         }
         public double Mana
@@ -59,14 +59,14 @@ namespace FrogBattle.Classes
         {
             get
             {
-                return GetEffects<Shield>().Sum((x) => x.GetShield());
+                return GetEffects().FindAll((x) => x.GetEffects<StatusEffect.Shield>().Count != 0).Sum((x) => x.GetEffects<StatusEffect.Shield>()[0].Amount);
             }
         }
-        public double Barrier
+        public uint Barrier
         {
             get
             {
-                return GetEffects<Barrier>().Sum((x) => x.GetBarrier());
+                return (uint)GetEffects().FindAll((x) => x.GetEffects<StatusEffect.Barrier>().Count != 0).Sum((x) => x.GetEffects<StatusEffect.Barrier>()[0].Count);
             }
         }
         #endregion
@@ -127,7 +127,7 @@ namespace FrogBattle.Classes
         /// Searches <see cref="StatusEffects"/> for all effects.
         /// </summary>
         /// <returns>Every effect applied to this fighter.</returns>
-        public IEnumerable<StatusEffect> GetEffects()
+        public List<StatusEffect> GetEffects()
         {
             return StatusEffects;
         }
@@ -136,7 +136,7 @@ namespace FrogBattle.Classes
         /// </summary>
         /// <param name="predicate">The condition that a <see cref="StatusEffect"/> must match.</param>
         /// <returns>An enumerable of effects that match the given predicate.</returns>
-        public IEnumerable<StatusEffect> GetEffects(Predicate<StatusEffect> predicate)
+        public List<StatusEffect> GetEffects(Predicate<StatusEffect> predicate)
         {
             return StatusEffects.FindAll(predicate);
         }
@@ -145,7 +145,7 @@ namespace FrogBattle.Classes
         /// </summary>
         /// <param name="stat">The <see cref="StatusEffect.Modifier.Stat"/> effects to search for.</param>
         /// <returns>An enumerable of StatusEffects that modify <paramref name="stat"/>.</returns>
-        public IEnumerable<StatusEffect> GetEffects(Stats stat)
+        public List<StatusEffect> GetEffects(Stats stat)
         {
             return StatusEffects.FindAll((x) => x.GetModifiers().ContainsKey(stat));
         }
@@ -159,23 +159,14 @@ namespace FrogBattle.Classes
             return GetEffects(stat).Sum((x) => x.GetModifiers()[stat].Op.Apply(x.GetModifiers()[stat].Amount, Base[stat]));
         }
         /// <summary>
-        /// Searches StatusEffects for all effects that match the given type.
-        /// </summary>
-        /// <typeparam name="T">Type inheriting <see cref="StatusEffect"/> to search for.</typeparam>
-        /// <returns>An enumerable of type <typeparamref name="T"/>.</returns>
-        public IEnumerable<T> GetEffects<T>()
-        {
-            return (IEnumerable<T>)StatusEffects.FindAll((x) => x is T);
-        }
-        /// <summary>
         /// Checks whether a character has the resources available to expend for an ability cost.
         /// </summary>
         /// <param name="value">The ability cost to check for.</param>
         /// <returns>True if the character can afford the cost, false otherwise.</returns>
         internal bool CanAfford(Ability.Cost value)
         {
-            if (value.Properties.HasFlag(Ability.CostProperties.Soft)) return true;
-            else if (value.Properties.HasFlag(Ability.CostProperties.Reverse))
+            if (value.Props.HasFlag(Ability.Cost.Properties.Soft)) return true;
+            else if (value.Props.HasFlag(Ability.Cost.Properties.Reverse))
             {
                 if (this.Resolve(value.Currency) > value.Op.Apply(value.Amount, this.Resolve(value.Currency))) return false;
                 else return true;

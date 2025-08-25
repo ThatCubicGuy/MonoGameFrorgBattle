@@ -9,14 +9,12 @@ namespace FrogBattle.Characters
 {
     internal class Snake : Character
     {
-        private readonly List<Ability> abilities = [];
         public Snake(string name) : base(name)
         {
-            abilities.Add(new ThrowGrenade(this));
         }
         private class ThrowGrenade : Ability
         {
-            public ThrowGrenade(Character source) : base(source, new(typeof(ThrowGrenade).Name, AbilitySettings.None))
+            public ThrowGrenade(Character source) : base(source, new(typeof(ThrowGrenade).Name, Settings.None))
             {
                 Init(new Cost(this, Pools.Mana, 15, CostProperties.None));
             }

@@ -50,7 +50,7 @@ namespace FrogBattle.Classes
         {
             return source.Resolve(pool);
         }
-        public static string toCamelCase(this string str)
+        public static string camelCase(this string str)
         {
             return str.ToLower()[0] + str[1..];
         }
@@ -77,6 +77,25 @@ namespace FrogBattle.Classes
         public static string ToConsoleString(this Character src, string format)
         {
             throw new NotImplementedException();
+        }
+    }
+    internal static class AbilityExtensions
+    {
+        /// <summary>
+        /// Tries to compound the value of a new cost with an already existing cost. This method will not add
+        /// the value if the cost doesn't already exist, or if their operators differ.
+        /// </summary>
+        /// <param name="cost">Cost whose value to add.</param>
+        /// <returns>True if the cost was found and the value added, false otherwise.</returns>
+        public static bool AddToCost(this Ability self, Cost cost)
+        {
+            if (self.Costs.TryGetValue(cost.Pool, out var value))
+            {
+                if (value.Op != cost.Op) return false;
+                self.Costs[cost.Pool] = value with { Amount = cost.Amount + value.Amount };
+                return true;
+            }
+            return false;
         }
     }
 }
