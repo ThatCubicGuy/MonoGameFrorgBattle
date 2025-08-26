@@ -36,6 +36,8 @@ namespace FrogBattle.Classes
         Def,
         Spd,
         Dex,
+        CritRate,
+        CritDamageBonus,
         HitRate,
         EffectHitRate,
         EffectRES,
@@ -54,12 +56,16 @@ namespace FrogBattle.Classes
         Special,
         Shield,
         Barrier,
-        Custom,
     }
     public enum Operators
     {
         Additive,
         Multiplicative
+    }
+    public enum Chances
+    {
+        Fixed,
+        Base
     }
     public enum EffectType
     {

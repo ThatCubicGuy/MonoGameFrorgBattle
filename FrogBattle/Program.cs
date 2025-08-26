@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FrogBattle;
+using System;
 
 internal class Program
 {
@@ -11,8 +12,20 @@ internal class Program
         }
         else if (args[0] == "-c" || args[0] == "--console")
         {
-            var game = new FrogBattle.ConsoleFrorgBattle();
-            game.Run();
+            try
+            {
+                var game = new ConsoleFrorgBattle();
+                return game.Run();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                Console.WriteLine("\nRough.");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"Invalid argument(s): {args}");
         }
         return 0;
     }

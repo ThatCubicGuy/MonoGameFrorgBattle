@@ -12,11 +12,12 @@ namespace FrogBattle.Characters
         public Snake(string name) : base(name)
         {
         }
-        private class ThrowGrenade : Ability
+        public class ThrowGrenade : BlastAttack
         {
-            public ThrowGrenade(Character source) : base(source, new(typeof(ThrowGrenade).Name, Settings.None))
-            {
-                Init(new Cost(this, Pools.Mana, 15, CostProperties.None));
+            public ThrowGrenade(Character source, Character target) : base(source, new(typeof(ThrowGrenade).Name, false), target,
+
+                ratio: 1.1, scalar: Stats.Atk, split: [1], falloff: 0.5) {
+                WithCost(new(this, 13, Pools.Mana, Operators.Additive));
             }
         }
     }

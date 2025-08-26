@@ -13,17 +13,15 @@ namespace FrogBattle.Classes
     {
         private static uint uid_count = 0;
         private readonly uint uid;
-        protected Character source;
-        public uint turns;
-        public uint maxStacks;
-        public Props properties;
         private readonly Dictionary<object, Effect> effects = [];
         
-        public StatusEffect(uint turns, uint maxStacks, Props properties, params Effect[] effects)
+        public StatusEffect(Character source, Character target, uint turns, uint maxStacks, Props properties, params Effect[] effects)
         {
-            this.turns = turns;
-            this.maxStacks = maxStacks;
-            this.properties = properties;
+            Source = source;
+            Target = target;
+            Turns = turns;
+            MaxStacks = maxStacks;
+            Properties = properties;
             foreach (var mod in effects)
             {
                 this.effects[mod.GetKey()] = mod;
@@ -31,16 +29,20 @@ namespace FrogBattle.Classes
             uid = uid_count;
             uid_count += 1;
         }
-        public StatusEffect(StatusEffect other) : this(other.turns, other.maxStacks, other.properties)
+        public StatusEffect(StatusEffect other) : this(other.Source, other.Target, other.Turns, other.MaxStacks, other.Properties)
         {
             effects = new(other.effects);
-            source = other.source;
             uid = other.uid;
             uid_count -= 1;
         }
 
         public string Name { get; set; }
-        
+        public Character Source { get; }
+        public Character Target { get; }
+        public uint Turns { get; private set; }
+        public uint MaxStacks { get; private set; }
+        public Props Properties { get; private set; }
+
         [Flags] public enum Props
         {
             None        = 1 << 0,
@@ -54,11 +56,15 @@ namespace FrogBattle.Classes
 
         public bool Is(Props p)
         {
-            return properties.HasFlag(p);
+            return Properties.HasFlag(p);
         }
+        /// <summary>
+        /// Deducts a turn from the StatusEffect and returns true if it has reached its end of lifetime.
+        /// </summary>
+        /// <returns>True if the StatusEffect has run out of turns and should be removed, false otherwise.</returns>
         public bool Expire()
         {
-            if (Is(Props.Infinite) || (--turns > 0)) return false;
+            if (Is(Props.Infinite) || (--Turns > 0)) return false;
             else return true;
         }
         public StatusEffect AddEffect(Effect effect)
@@ -66,13 +72,32 @@ namespace FrogBattle.Classes
             effects[effect.GetKey()] = effect;
             return this;
         }
+        /// <summary>
+        /// Get all effects within this <see cref="StatusEffect"/>.
+        /// </summary>
+        /// <returns>A dictionary containing every effect.</returns>
         public Dictionary<object, Effect> GetEffects()
         {
             return effects;
         }
-        public Dictionary<object, T> GetEffects<T>() where T : Effect
+        /// <summary>
+        /// Get all effects of type <typeparamref name="TResult"/> within this <see cref="StatusEffect"/>.
+        /// </summary>
+        /// <returns>A dictionary containing every effect of type <typeparamref name="TResult"/>.</returns>
+        public Dictionary<object, TResult> GetEffects<TResult>() where TResult : Effect
         {
-            return effects.OfType<KeyValuePair<object, T>>().ToDictionary();
+            return effects.OfType<KeyValuePair<object, TResult>>().ToDictionary();
+        }
+        /// <summary>
+        /// Get the single effect of type <typeparamref name="TResult"/> contained within effects.
+        /// If effects has more than one <typeparamref name="TResult"/> effect, throws an exception.
+        /// </summary>
+        /// <typeparam name="TResult"></typeparam>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <returns></returns>
+        public TResult SingleEffect<TResult>() where TResult : Effect
+        {
+            return effects.Values.OfType<TResult>().SingleOrDefault();
         }
         public Dictionary<object, Modifier> GetModifiers()
         {
@@ -80,9 +105,9 @@ namespace FrogBattle.Classes
         }
         public string Display()
         {
-            char a = Is(Props.Debuff) ? '\u2193' : '\u2191';
-            if (Is(Props.Infinite)) return $"{a}[{Name}]";
-            else return $"{a}[{Name} ({turns})]";
+            char arrow = Is(Props.Debuff) ? '\u2193' : '\u2191';
+            if (Is(Props.Infinite)) return $"{arrow}[{Name}]";
+            else return $"{arrow}[{Name} ({Turns})]";
         }
         internal abstract class Effect
         {
@@ -92,6 +117,8 @@ namespace FrogBattle.Classes
                 IsBuff = buff;
             }
             public StatusEffect Parent { get; }
+            public Character SourceFighter => Parent.Source;
+            public Character TargetFighter => Parent.Target;
             public bool IsBuff { get; }
             public string TranslationKey { get => "effect.type." + GetType().Name.camelCase(); }
             public virtual string GetLocalizedText() => Localization.Translate(TranslationKey, GetFormatArgs());
@@ -100,29 +127,47 @@ namespace FrogBattle.Classes
         }
         internal class Modifier : Effect
         {
-            public Modifier(StatusEffect parent, double amount, Stats stat, Operators op) : base(parent, (amount > 0) ^ Registry.IsHigherBetter(stat))
+            private readonly double _amount;
+            public Modifier(StatusEffect parent, double amount, Stats stat, Operators op) : base(parent, (amount < 0) ^ Registry.IsHigherBetter(stat))
             {
-                Amount = amount;
+                _amount = amount;
                 Stat = stat;
                 Op = op;
             }
-            public double Amount { get; }
-            public Operators Op { get; }
+            /// <summary>
+            /// Automatically applies the operator based on the fighter it is attached to.
+            /// </summary>
+            public double Amount
+            {
+                get => Op.Apply(_amount, TargetFighter.Base[Stat]);
+            }
             public Stats Stat { get; }
+            private Operators Op { get; }
             public override object[] GetFormatArgs() => [Amount, Stat];
-            public override object GetKey() => Stat;
+            public override object GetKey() => (typeof(Modifier), Stat);
 
         }
         internal class Shield : Effect
         {
-            public Shield(StatusEffect parent, double amount, DamageTypes? shieldType = null, double? healPerTurn = null) : base(parent, true)
+            private readonly double maxAmount;
+            private double currentAmount;
+            public Shield(StatusEffect parent, double amount, DamageTypes? shieldType = null, double? maxAmount = null, double? healPerTurn = null) : base(parent, true)
             {
-                if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount), "Shield value must be positive.");
+                if (amount <= 0 || maxAmount <= 0) throw new ArgumentOutOfRangeException(nameof(amount), "Shield value must be positive.");
+                if (maxAmount != null) this.maxAmount = maxAmount.Value;
                 Amount = amount;
                 ShieldType = shieldType;
                 Healing = healPerTurn;
             }
-            public double Amount { get; }
+            public double Amount
+            {
+                get => currentAmount;
+                set
+                {
+                    currentAmount = value;
+                    if (currentAmount > maxAmount) currentAmount = maxAmount;
+                }
+            }
             public DamageTypes? ShieldType { get; }
             public double? Healing { get; }
             public override object[] GetFormatArgs()
@@ -139,44 +184,141 @@ namespace FrogBattle.Classes
         }
         internal class Barrier : Effect
         {
-            public Barrier(StatusEffect parent, uint count) : base(parent, true)
+            private readonly uint maxCount;
+            private uint currentCount;
+            public Barrier(StatusEffect parent, uint count, uint? maxCount = null) : base(parent, true)
             {
-                if (count == 0) throw new ArgumentOutOfRangeException(nameof(count), "Barrier count must be positive.");
+                if (count == 0 || maxCount == 0) throw new ArgumentOutOfRangeException(nameof(count), "Barrier count must be positive.");
+                if (maxCount != null) this.maxCount = maxCount.Value;
                 Count = count;
             }
-            public uint Count { get; }
+            public uint Count
+            {
+                get => currentCount;
+                set
+                {
+                    currentCount = value;
+                    if (currentCount > maxCount) currentCount = maxCount;
+                }
+            }
             public override object[] GetFormatArgs() => [Count];
             public override object GetKey() => typeof(Barrier);
         }
         internal class Drain : Effect
         {
+            private readonly double _amount;
             public Drain(StatusEffect parent, double amount, Pools pool, Operators op) : base(parent, false)
             {
                 if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount), "Drain value must be positive.");
                 if (pool == Pools.Hp) throw new ArgumentOutOfRangeException(nameof(pool));
-                Amount = amount;
+                _amount = amount;
                 Pool = pool;
                 Op = op;
             }
-            public double Amount { get; }
-            public Operators Op { get; }
+            /// <summary>
+            /// Automatically applies the operator based on the fighter it is attached to.
+            /// </summary>
+            public double Amount
+            {
+                get => Op.Apply(_amount, TargetFighter.Resolve(Pool));
+            }
             public Pools Pool { get; }
+            private Operators Op { get; }
             public override object[] GetFormatArgs() => [Amount, Pool];
-            public override object GetKey() => Pool;
+            public override object GetKey() => (typeof(Drain), Pool);
         }
         internal class DamageOverTime : Effect
         {
+            private readonly double _amount;
             public DamageOverTime(StatusEffect parent, double amount, Operators op, Damage.Properties props) : base(parent, false)
             {
-                Amount = amount;
+                _amount = amount;
                 Op = op;
-                Props = props with { crit = false, source = DamageSources.DamageOverTime };
+                Props = props with { Crit = false, Source = DamageSources.DamageOverTime };
             }
-            public double Amount { get; }
-            public Operators Op { get; }
+            /// <summary>
+            /// Automatically applies the operator based on the fighter it is attached to.
+            /// </summary>
+            public double Amount
+            {
+                get => Op.Apply(_amount, TargetFighter.Hp);
+            }
+            private Operators Op { get; }
             public Damage.Properties Props { get; }
             public override object[] GetFormatArgs() => [Amount];
             public override object GetKey() => typeof(DamageOverTime);
+        }
+        /// <summary>
+        /// Influences a specific type of damage. Percentage only.
+        /// </summary>
+        internal class DamageTypeBonus : Effect
+        {
+            private readonly double _amount;
+            public DamageTypeBonus(StatusEffect parent, double amount, DamageTypes type) : base(parent, amount >= 0)
+            {
+                _amount = amount;
+                Type = type;
+            }
+            public double Amount
+            {
+                get => _amount;
+            }
+            public DamageTypes Type { get; }
+            public override object[] GetFormatArgs() => [Amount, Type];
+            public override object GetKey() => (typeof(DamageTypeBonus), Type);
+        }
+        /// <summary>
+        /// Influences a specific type of damage resistance. Percentage only.
+        /// </summary>
+        internal class DamageTypeRES : Effect
+        {
+            private readonly double _amount;
+            public DamageTypeRES(StatusEffect parent, double amount, DamageTypes type) : base(parent, amount >= 0)
+            {
+                _amount = amount;
+                Type = type;
+            }
+            public double Amount
+            {
+                get => _amount;
+            }
+            public DamageTypes Type { get; }
+            public override object[] GetFormatArgs() => [Amount, Type];
+            public override object GetKey() => (typeof(DamageTypeRES), Type);
+        }
+        /// <summary>
+        /// Influences damage dealt, positive values are good. Percentage only.
+        /// </summary>
+        internal class DamageBonus : Effect
+        {
+            private readonly double _amount;
+            public DamageBonus(StatusEffect parent, double amount) : base(parent, amount >= 0)
+            {
+                _amount = amount;
+            }
+            public double Amount
+            {
+                get => _amount;
+            }
+            public override object[] GetFormatArgs() => [Amount];
+            public override object GetKey() => typeof(DamageBonus);
+        }
+        /// <summary>
+        /// Influences damage taken, positive values are good. Percentage only.
+        /// </summary>
+        internal class DamageRES : Effect
+        {
+            private readonly double _amount;
+            public DamageRES(StatusEffect parent, double amount) : base(parent, amount >= 0)
+            {
+                _amount = amount;
+            }
+            public double Amount
+            {
+                get => _amount;
+            }
+            public override object[] GetFormatArgs() => [Amount];
+            public override object GetKey() => typeof(DamageRES);
         }
     }
 }

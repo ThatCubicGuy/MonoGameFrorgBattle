@@ -7,10 +7,35 @@ using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
+    internal static class DoubleExtensions
+    {
+        /// <summary>
+        /// Checks whether <paramref name="value"/> is within the inclusive interval [<paramref name="minValue"/>, <paramref name="maxValue"/>].
+        /// Null values imply no bounding on that side.
+        /// </summary>
+        /// <param name="value">The value to check for.</param>
+        /// <param name="minValue">The lower bound of the interval.</param>
+        /// <param name="maxValue">The upper bound of the interval.</param>
+        /// <returns>True if <paramref name="value"/> is within the interval, false otherwise.</returns>
+        public static bool IsWithinBounds(this double value, double? minValue, double? maxValue)
+        {
+            return !(value < minValue || value > maxValue);
+        }
+    }
     internal static class EnumExtensions
     {
         public static double Apply(this Operators op, double amount, double baseValue)
         {
+            return op switch
+            {
+                Operators.Additive => amount,
+                Operators.Multiplicative => amount * baseValue,
+                _ => throw new ArgumentOutOfRangeException(nameof(op), op, null),
+            };
+        }
+        public static double? Apply(this Operators op, double? amount, double baseValue)
+        {
+            if (amount == null) return null;
             return op switch
             {
                 Operators.Additive => amount,
@@ -31,11 +56,11 @@ namespace FrogBattle.Classes
         /// Get the corresponding stat value from the <see cref="Pools"/> enum.
         /// </summary>
         /// <param name="source">The fighter for which to resolve the stat.</param>
-        /// <param name="stat">The stat to check the value for.</param>
+        /// <param name="pool">The stat to check the value for.</param>
         /// <returns>The current value of the stat requested.</returns>
-        public static double Resolve(this Character source, Pools stat)
+        public static double Resolve(this Character source, Pools pool)
         {
-            return stat switch
+            return pool switch
             {
                 Pools.Hp => source.Hp,
                 Pools.Mana => source.Mana,
@@ -44,6 +69,22 @@ namespace FrogBattle.Classes
                 Pools.Shield => source.Shield,
                 Pools.Barrier => source.Barrier,
                 _ => 0
+            };
+        }
+        /// <summary>
+        /// Finds the Stat that corresponds to the maximum value of this <see cref="Pools"/> item.
+        /// Returns <see cref="Stats.None"/> for pools that do not have a maximum value.
+        /// </summary>
+        /// <param name="pool">Pool whose corresponding max stat to find.</param>
+        /// <returns></returns>
+        public static Stats Max(this Pools pool)
+        {
+            return pool switch
+            {
+                Pools.Hp => Stats.MaxHp,
+                Pools.Mana => Stats.MaxMana,
+                Pools.Energy => Stats.MaxEnergy,
+                _ => Stats.None
             };
         }
         public static double Resolve(this Pools pool, Character source)
@@ -63,7 +104,7 @@ namespace FrogBattle.Classes
             foreach (var effect in list)
             {
                 var item = effect.GetModifiers()[stat];
-                totalValue += item.Op.Apply(item.Amount, baseValue);
+                totalValue += item.Amount;
             }
             return totalValue;
         }
@@ -85,14 +126,14 @@ namespace FrogBattle.Classes
         /// Tries to compound the value of a new cost with an already existing cost. This method will not add
         /// the value if the cost doesn't already exist, or if their operators differ.
         /// </summary>
-        /// <param name="cost">Cost whose value to add.</param>
+        /// <param name="change">Cost whose value to add.</param>
         /// <returns>True if the cost was found and the value added, false otherwise.</returns>
-        public static bool AddToCost(this Ability self, Cost cost)
+        public static bool AddToChange(this Ability self, Ability.PoolChange change)
         {
-            if (self.Costs.TryGetValue(cost.Pool, out var value))
+            if (self.PoolChanges.TryGetValue(change.Pool, out var value))
             {
-                if (value.Op != cost.Op) return false;
-                self.Costs[cost.Pool] = value with { Amount = cost.Amount + value.Amount };
+                if (value.Op != change.Op) return false;
+                self.PoolChanges[change.Pool] = value with { Amount = change.Amount + value.Amount };
                 return true;
             }
             return false;

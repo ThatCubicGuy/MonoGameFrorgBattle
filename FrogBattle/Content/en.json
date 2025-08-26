@@ -23,7 +23,7 @@
     "effect.type.shield.addon.healing": "(+{0:0}HP/Turn)",
     "effect.type.barrier": "{0} Barriers",
     "effect.type.drain": "{0} {1}/Turn",
-    "effect.type.damageOverTime": "{0} {1}/Turn",
+    "effect.type.damageOverTime": "{0} HP/Turn",
 
     "character.generic.miss": "{0} missed {1}!",
     "character.generic.dodge": "{1} dodged the attack!",

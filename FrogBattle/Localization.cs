@@ -19,9 +19,6 @@ namespace FrogBattle
             if (!strings.TryGetValue(key, out var template))
                 return key;
 
-            // problem with this is that i don't pass full statuseffects as parameters
-            //template = template.Replace("{arrow}", args.Length > 0 && args[0] is Classes.StatusEffect.Effect effect ? (effect.IsBuff ? "↑" : "↓") : string.Empty);
-
             return string.Format(template, args);
         }
     }

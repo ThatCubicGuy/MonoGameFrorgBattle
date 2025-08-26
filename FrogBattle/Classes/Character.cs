@@ -7,16 +7,32 @@ using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
-    internal abstract class Character
+    internal abstract class Character : ITakesAction
     {
-        public Dictionary<Stats, double> Base;
+        public readonly Dictionary<Stats, double> Base;
         protected double CurrentHp;
         protected double CurrentMana;
         protected double CurrentEnergy = 0;
         private readonly List<StatusEffect> StatusEffects = [];
         private readonly List<StatusEffect> MarkedForDeath = [];
-        public string Name { get; protected set; }
         public readonly string internalName;
+        public Character(string name, Dictionary<Stats, double> overrides = null)
+        {
+            internalName = GetType().BaseType.Name.camelCase() + '.' + GetType().Name.camelCase();
+            Name = name;
+            Base = new Dictionary<Stats, double>(Registry.DefaultStats);
+            if (overrides != null)
+            {
+                foreach (var kvp in overrides)
+                {
+                    Base[kvp.Key] = kvp.Value;
+                }
+            }
+            CurrentHp = Base[Stats.MaxHp];
+            CurrentMana = Base[Stats.MaxMana] / 2;
+        }
+        public string Name { get; protected set; }
+        public List<Character> Team { get; } // not gonna implement this rn lmfao
         #region Pools
         public double Hp
         {
@@ -59,7 +75,32 @@ namespace FrogBattle.Classes
         {
             get
             {
-                return GetEffects().FindAll((x) => x.GetEffects<StatusEffect.Shield>().Count != 0).Sum((x) => x.GetEffects<StatusEffect.Shield>()[0].Amount);
+                return GetEffects().FindAll((x) => x.GetEffects<StatusEffect.Shield>().Count != 0).Sum((x) => x.GetEffects<StatusEffect.Shield>().Single().Value.Amount);
+            }
+            set
+            {
+                double diff = value - Shield;
+                if (diff < 0)
+                {
+                    diff *= -1;
+                    foreach (var item in StatusEffects.SelectMany((x) => x.GetEffects<StatusEffect.Shield>().Values))
+                    {
+                        if (diff >= item.Amount)
+                        {
+                            diff -= item.Amount;
+                            StatusEffects.Remove(item.Parent);
+                        }
+                        else
+                        {
+                            item.Amount -= diff;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
             }
         }
         public uint Barrier
@@ -68,8 +109,34 @@ namespace FrogBattle.Classes
             {
                 return (uint)GetEffects().FindAll((x) => x.GetEffects<StatusEffect.Barrier>().Count != 0).Sum((x) => x.GetEffects<StatusEffect.Barrier>()[0].Count);
             }
+            set
+            {
+                if ((int)value - Barrier <= 0)
+                {
+                    uint diff = Barrier - value;
+                    foreach (var item in StatusEffects.SelectMany((x) => x.GetEffects<StatusEffect.Barrier>().Values))
+                    {
+                        if (diff >= item.Count)
+                        {
+                            diff -= item.Count;
+                            StatusEffects.Remove(item.Parent);
+                        }
+                        else
+                        {
+                            item.Count -= diff;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    uint diff = value - Barrier;
+                    throw new NotImplementedException();
+                }
+            }
         }
         #endregion
+        public bool IsCrit => Battle.RNG < GetStat(Stats.CritRate);
         public double ActionValue
         {
             get
@@ -77,23 +144,20 @@ namespace FrogBattle.Classes
                 return 10000 / GetStat(Stats.Spd);
             }
         }
-        public Character(string name, Dictionary<Stats, double> overrides = null)
+        public bool TakeAction()
         {
-            internalName = GetType().BaseType.Name + '.' + GetType().Name;
-            Name = name;
-            Base = new Dictionary<Stats, double>(Registry.DefaultStats);
-            if (overrides != null)
-            {
-                foreach (var kvp in overrides)
-                {
-                    Base[kvp.Key] = kvp.Value;
-                }
-            }
-            CurrentHp = Base[Stats.MaxHp];
-            CurrentMana = Base[Stats.MaxMana] / 2;
+            // HOW
         }
+        /// <summary>
+        /// Calculates the final value for a given stat by using the base values of the fighter and the currently applied effects.
+        /// Trying to calculate <see cref="Stats.None"/> throws an exception.
+        /// </summary>
+        /// <param name="stat">Stat for which to calculate the final value.</param>
+        /// <returns>A double which represents the stat post calculations.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public double GetStat(Stats stat)
         {
+            if (stat == Stats.None) throw new ArgumentOutOfRangeException(nameof(stat), "Cannot resolve stat Stats.None.");
             return Base[stat] + GetEffectsValue(stat);
         }
         private void StartOfTurnChecks()
@@ -110,19 +174,35 @@ namespace FrogBattle.Classes
             {
                 if (item.Expire()) StatusEffects.Remove(item);
             }
+            MarkedForDeath.Clear();
         }
-        public IEnumerator<Damage> OutgoingDamage(Stats source, double ratio, Damage.Properties props, params uint[] split)
+        /// <summary>
+        /// Creates one or multiple instances of <see cref="Damage"/> for an attack.
+        /// </summary>
+        /// <param name="target">The target of the attack.</param>
+        /// <param name="scalar">The stat to use for calculating the ratio.</param>
+        /// <param name="ratio">The percentage of the scalar to use for the base damage amount.</param>
+        /// <param name="type">The type of the damage.</param>
+        /// <param name="defIgnore">The amount of the target's defense to ignore.</param>
+        /// <param name="typeResPen">The percentage of damage-type-specific resistance of the target to ignore.</param>
+        /// <param name="split">The splitting mode of this damage. Each number represents
+        /// the amount of damage (from the total sum) that will go to that slice.
+        /// Input as many as you want.</param>
+        /// <returns>An <see cref="IEnumerator{T}"/> of <see cref="Damage"/>, iterating through every instance of damage.</returns>
+        public IEnumerator<Damage> AttackDamage(Character target, Stats scalar, double ratio, DamageTypes type, double defIgnore, double typeResPen, params uint[] split)
         {
-            if (split.Length == 0) yield return new(GetStat(source) * ratio, props);
+            var props = new Damage.Properties(type, DamageSources.Attack, DefenseIgnore: defIgnore, TypeResPen: typeResPen);
+            if (split.Length == 0) yield return new(this, target, GetStat(scalar) * ratio, props with { Crit = IsCrit });
             else
             {
-                double sum = split.Sum((x) => (double)x);
+                long sum = split.Sum((x) => x);
                 foreach (uint i in split)
                 {
-                    yield return new(GetStat(source) * i * ratio / sum, props);
+                    yield return new(this, target, GetStat(scalar) * i * ratio / sum, props with { Crit = IsCrit });
                 }
             }
         }
+        // to do: implement final damage calculations for additional damage calculations
         /// <summary>
         /// Searches <see cref="StatusEffects"/> for all effects.
         /// </summary>
@@ -132,13 +212,12 @@ namespace FrogBattle.Classes
             return StatusEffects;
         }
         /// <summary>
-        /// Searches <see cref="StatusEffects"/> for all effects that match the given predicate.
+        /// Searches <see cref="StatusEffects"/> for all effects that contain an effect of type <typeparamref name="TResult"/>.
         /// </summary>
-        /// <param name="predicate">The condition that a <see cref="StatusEffect"/> must match.</param>
-        /// <returns>An enumerable of effects that match the given predicate.</returns>
-        public List<StatusEffect> GetEffects(Predicate<StatusEffect> predicate)
+        /// <returns>A list of every <typeparamref name="TResult"/> effect from the fighter's currently applied StatusEffects.</returns>
+        public List<TResult> GetEffects<TResult>() where TResult : StatusEffect.Effect
         {
-            return StatusEffects.FindAll(predicate);
+            return [.. StatusEffects.SelectMany((x) => x.GetEffects<TResult>().Values)];
         }
         /// <summary>
         /// Searches <see cref="StatusEffects"/> for all effects that modify the <see cref="Stats"/> <paramref name="stat"/> in some way.
@@ -156,31 +235,37 @@ namespace FrogBattle.Classes
         /// <returns>A double that represents the modification from the base value of the given stat.</returns>
         public double GetEffectsValue(Stats stat)
         {
-            return GetEffects(stat).Sum((x) => x.GetModifiers()[stat].Op.Apply(x.GetModifiers()[stat].Amount, Base[stat]));
+            return GetEffects(stat).Sum((x) => x.GetModifiers()[stat].Amount);
         }
         /// <summary>
-        /// Checks whether a character has the resources available to expend for an ability cost.
+        /// Applies a pool change to this fighter.
         /// </summary>
-        /// <param name="value">The ability cost to check for.</param>
-        /// <returns>True if the character can afford the cost, false otherwise.</returns>
-        internal bool CanAfford(Ability.Cost value)
+        /// <param name="value">Change to apply.</param>
+        public void ApplyChange(Ability.PoolChange change)
         {
-            if (value.Props.HasFlag(Ability.Cost.Properties.Soft)) return true;
-            else if (value.Props.HasFlag(Ability.Cost.Properties.Reverse))
+            switch (change.Pool)
             {
-                if (this.Resolve(value.Currency) > value.Op.Apply(value.Amount, this.Resolve(value.Currency))) return false;
-                else return true;
+                case Pools.Hp:
+                    Hp += change.Op.Apply(change.Amount, Base[change.Pool.Max()]);
+                    break;
+                case Pools.Mana:
+                    Mana += change.Op.Apply(change.Amount, Base[change.Pool.Max()]);
+                    break;
+                case Pools.Energy:
+                    Energy += change.Op.Apply(change.Amount, Base[change.Pool.Max()]);
+                    break;
+                case Pools.Special:
+                    Special += change.Amount;
+                    break;
+                case Pools.Shield:
+                    Shield += change.Amount;
+                    break;
+                case Pools.Barrier:
+                    Barrier += (uint)change.Amount;
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unknown pool item \"{change.Pool}\"");
             }
-            else if (this.Resolve(value.Currency) < value.Op.Apply(value.Amount, this.Resolve(value.Currency))) return false;
-            else return true;
-        }
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="value"></param>
-        internal void Expend(Ability.Cost value)
-        {
-
         }
     }
 }
