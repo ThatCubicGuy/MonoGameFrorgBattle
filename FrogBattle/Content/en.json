@@ -27,5 +27,9 @@
 
     "character.generic.miss": "{0} missed {1}!",
     "character.generic.dodge": "{1} dodged the attack!",
-    "character.snake.ability.throwGrenade": "Throw grenade"
+    "character.generic.damage": "{0} took {1} damage!",
+
+    "character.snake.ability.throwGrenade.name": "Throw grenade",
+    "character.snake.ability.throwGrenade.text.start": "{0} throws a grenade at {1}!",
+    "character.snake.ability.throwGrenade.text.end": "The grenade explodes right next to {1}'s face, dealing {2} damage!"
 }

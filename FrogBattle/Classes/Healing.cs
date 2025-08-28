@@ -10,7 +10,7 @@ namespace FrogBattle.Classes
 {
     internal class Healing
     {
-        private readonly double baseAmount;
+        private readonly double _baseAmount;
         /// <summary>
         /// Initializes a new instance of <see cref="Healing"/>.
         /// </summary>
@@ -20,7 +20,7 @@ namespace FrogBattle.Classes
         {
             Source = source;
             Target = target;
-            baseAmount = amount;
+            _baseAmount = amount;
         }
         /// <summary>
         /// Automatically calculates outgoing healing from the source fighter and incoming healing on the target.
@@ -29,7 +29,7 @@ namespace FrogBattle.Classes
         {
             get
             {
-                var total = baseAmount;
+                var total = _baseAmount; // Op.Apply(_baseAmount, Target.Hp); if we do decide to use op
                 // Outgoing bonuses
                 if (Source != null)
                 {
@@ -51,4 +51,3 @@ namespace FrogBattle.Classes
         }
     }
 }
-// order of effects for damage: atk -> type bonus -> crit -> dmg bonus -> type res -> def -> dmg reduction

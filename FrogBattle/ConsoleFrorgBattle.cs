@@ -40,6 +40,7 @@ namespace FrogBattle
                     throw new Exception("what in the what are you even doing.");
             }
             var game = new Battle(Player1, Player2);
+            game.Run();
             return 0;
         }
     }

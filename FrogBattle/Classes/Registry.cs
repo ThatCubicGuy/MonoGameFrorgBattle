@@ -21,10 +21,9 @@ namespace FrogBattle.Classes
                 { Stats.Dex, 0 },
                 { Stats.CritRate, 0.1 },
                 { Stats.CritDamageBonus, 0.5 },
-                { Stats.HitRate, 0 },
+                { Stats.HitRateBonus, 0 },
                 { Stats.EffectHitRate, 1 },
                 { Stats.EffectRES, 0 },
-                { Stats.AllTypeRES, 0 },
                 { Stats.ManaCost, 1 },
                 { Stats.ManaRegen, 1 },
                 { Stats.IncomingHealing, 1 },
@@ -39,5 +38,27 @@ namespace FrogBattle.Classes
         }
         .ToFrozenSet();
         public static bool IsHigherBetter(Stats stat) => !HigherIsWorse.Contains(stat);
+        /// <summary>
+        /// This is merely a funny little joke that i probably won't use. But who knows !!!
+        /// </summary>
+        public static readonly FrozenDictionary<Scalars, double> GenericScalars =
+            new Dictionary<Scalars, double>()
+            {
+                { Scalars.Light, 0.70 },
+                { Scalars.Medium, 1.00 },
+                { Scalars.Heavy, 1.30 },
+                { Scalars.Huge, 2.00 },
+                { Scalars.Massive, 3.00 },
+                { Scalars.Mental, 5.00 },
+                { Scalars.Deranged, 7.50 },
+                { Scalars.Irrational, 10.00 },
+                { Scalars.Outrageous, 15.00 },
+                { Scalars.Bonkers, 20.00 },
+                { Scalars.Baffling, 30.00 },
+                { Scalars.Obscene, 40.00 },
+                { Scalars.Crikey, 50.00 },
+                { Scalars.Cringe, 100.00 }
+            }
+            .ToFrozenDictionary();
     }
 }

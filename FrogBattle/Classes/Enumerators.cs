@@ -38,12 +38,12 @@ namespace FrogBattle.Classes
         Dex,
         CritRate,
         CritDamageBonus,
-        HitRate,
+        HitRateBonus,
         EffectHitRate,
         EffectRES,
-        AllTypeRES,
         ManaCost,           // Positive = Bad
         ManaRegen,
+        EnergyRecharge,
         IncomingHealing,
         OutgoingHealing,
         ShieldToughness,
@@ -55,7 +55,7 @@ namespace FrogBattle.Classes
         Energy,
         Special,
         Shield,
-        Barrier,
+        Barrier
     }
     public enum Operators
     {
@@ -75,5 +75,44 @@ namespace FrogBattle.Classes
         Barrier,
         Drain,
         DoT
+    }
+    public enum Scalars
+    {
+        Light,
+        Medium,
+        Heavy,
+        Huge,
+        Massive,
+        Mental,
+        Deranged,
+        Irrational,
+        Outrageous,
+        Bonkers,
+        Baffling,
+        Obscene,
+        Crikey,
+        Cringe
+    }
+    public enum TextTypes
+    {
+        Start,
+        Damage1,
+        Damage2,
+        Damage3,
+        Damage4,
+        Damage5,
+        Damage6,
+        Damage7,
+        Damage8,
+        Damage9,
+        Damage10,
+        Damage11,
+        Damage12,
+        Damage13,
+        Damage14,
+        Damage15,
+        Damage16,
+        End,
+        Miss
     }
 }

@@ -23,10 +23,14 @@ namespace FrogBattle.Classes
             Target = target;
             baseAmount = amount;
             Props = props;
+            if (props.CanCrit) Crit = source.IsCrit;
+            else Crit = false;
         }
         /// <summary>
         /// Automatically calculates outgoing bonuses from the source fighter,
         /// such as damage type boosts, and incoming resistances on the target.
+        /// <br/>Order: base -> Type and Source Bonus -> Crit Damage -> Damage Bonus -> Type and Source RES -> DEF -> Damage RES
+        /// <br/>(Damage stacks after each calculation.)
         /// </summary>
         public double Amount
         {
@@ -36,14 +40,14 @@ namespace FrogBattle.Classes
                 // Outgoing bonuses
                 if (Source != null)
                 {
-                    total += total * Source.GetEffects<DamageTypeBonus>().FindAll((x) => x.Type == Props.Type).Sum((x) => x.Amount);
-                    total += Props.Crit ? total * Source.GetStat(Stats.CritDamageBonus) : 0;
+                    total += total * (Source.GetEffects<DamageTypeBonus>().FindAll((x) => x.Type == Props.Type).Sum((x) => x.Amount) + Source.GetEffects<DamageSourceBonus>().FindAll((x) => x.Source == Props.Source).Sum((x) => x.Amount));
+                    total += Crit ? total * Source.GetStat(Stats.CritDamageBonus) : 0;
                     total += total * Source.GetEffects<DamageBonus>().Sum((x) => x.Amount);
                 }
                 // Incoming bonuses
                 if (Target != null)
                 {
-                    total -= total * Target.GetEffects<DamageTypeRES>().FindAll((x) => x.Type == Props.Type).Sum((x) => x.Amount) * (1 - Props.TypeResPen);
+                    total -= total * (Target.GetEffects<DamageTypeRES>().FindAll((x) => x.Type == Props.Type).Sum((x) => x.Amount) * (1 - Props.TypeResPen) + Target.GetEffects<DamageSourceRES>().FindAll((x) => x.Source == Props.Source).Sum((x) => x.Amount)/* * (1 - Props.SourceResPen) // idk maybe one day :pensive:*/);
                     total -= Target.GetStat(Stats.Def) * (1 - Props.DefenseIgnore);
                     total -= total * Source.GetEffects<DamageRES>().Sum((x) => x.Amount);
                 }
@@ -53,18 +57,18 @@ namespace FrogBattle.Classes
         public Character Source { get; }
         public Character Target { get; }
         public Properties Props { get; }
+        public bool Crit { get; }
         public Damage Clone()
         {
             return MemberwiseClone() as Damage;
         }
         public record Properties
         (
-            DamageTypes Type,
-            DamageSources Source,
-            bool Crit = false,
+            DamageTypes Type = DamageTypes.None,
+            DamageSources Source = DamageSources.None,
             double DefenseIgnore = 0,
-            double TypeResPen = 0
+            double TypeResPen = 0,
+            bool CanCrit = false
         );
     }
 }
-// order of effects for damage: atk -> type bonus -> crit -> dmg bonus -> type res -> def -> dmg reduction

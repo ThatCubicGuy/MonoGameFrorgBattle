@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using static FrogBattle.Classes.StatusEffect;
 
 namespace FrogBattle.Classes
 {
@@ -56,8 +58,8 @@ namespace FrogBattle.Classes
         /// Get the corresponding stat value from the <see cref="Pools"/> enum.
         /// </summary>
         /// <param name="source">The fighter for which to resolve the stat.</param>
-        /// <param name="pool">The stat to check the value for.</param>
-        /// <returns>The current value of the stat requested.</returns>
+        /// <param name="pool">The pool to check the value for.</param>
+        /// <returns>The current value of the pool requested.</returns>
         public static double Resolve(this Character source, Pools pool)
         {
             return pool switch
@@ -113,7 +115,13 @@ namespace FrogBattle.Classes
     {
         public static string ToConsoleString(this Character src)
         {
-            throw new NotImplementedException();
+            return $"{src.Name}\t\t[{src.Hp} HP, " +
+                $"{src.GetStat(Stats.Atk)} ATK, " +
+                $"{src.GetStat(Stats.Def)} DEF, " +
+                $"{src.GetStat(Stats.Spd)} SPD, " +
+                $"{src.GetStat(Stats.Dex)} DEX, " +
+                $"{src.Mana} MP, " +
+                $"{src.Energy}/{src.GetStat(Stats.MaxEnergy)}";
         }
         public static string ToConsoleString(this Character src, string format)
         {
@@ -122,21 +130,40 @@ namespace FrogBattle.Classes
     }
     internal static class AbilityExtensions
     {
-        /// <summary>
-        /// Tries to compound the value of a new cost with an already existing cost. This method will not add
-        /// the value if the cost doesn't already exist, or if their operators differ.
-        /// </summary>
-        /// <param name="change">Cost whose value to add.</param>
-        /// <returns>True if the cost was found and the value added, false otherwise.</returns>
-        public static bool AddToChange(this Ability self, Ability.PoolChange change)
+        public static bool IsHit(this IAttack ability, Character Target)
         {
-            if (self.PoolChanges.TryGetValue(change.Pool, out var value))
+            return ability.HitRate == null || Battle.RNG >= ability.HitRate + ability.Parent.GetStat(Stats.HitRateBonus) - Target.GetStat(Stats.Dex) / 100;
+        }
+        public static List<Damage> AttackDamage(this IAttack ability, Character Target)
+        {
+            if (ability.Split.Length > 16) throw new InvalidDataException("Cannot split damage into more than 16 parts!");
+            var result = new List<Damage>();
+            var props = new Damage.Properties(
+                        Type: ability.Type,
+                        Source: DamageSources.Attack,
+                        DefenseIgnore: ability.DefenseIgnore,
+                        TypeResPen: ability.TypeResPen,
+                        CanCrit: true
+                    );
+            if (!ability.IndependentHitRate && !ability.IsHit(Target))
             {
-                if (value.Op != change.Op) return false;
-                self.PoolChanges[change.Pool] = value with { Amount = change.Amount + value.Amount };
-                return true;
+                return null;
             }
-            return false;
+            if (ability.Split.Length == 0)
+            {
+                result.Add(ability.IsHit(Target) && ability.IndependentHitRate ? new(ability.Parent, Target,
+                ability.Ratio * ability.Parent.GetStat(ability.Scalar), props) : null);
+            }
+            else
+            {
+                long sum = ability.Split.Sum((x) => x);
+                foreach (var i in ability.Split)
+                {
+                    result.Add(ability.IsHit(Target) && ability.IndependentHitRate ? new(ability.Parent, Target,
+                    ability.Ratio * ability.Parent.GetStat(ability.Scalar) * i / sum, props) : null);
+                }
+            }
+            return result;
         }
     }
 }

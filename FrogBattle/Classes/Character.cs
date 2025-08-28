@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
-    internal abstract class Character : ITakesAction
+    internal abstract class Character : IHasTurn
     {
         public readonly Dictionary<Stats, double> Base;
         protected double CurrentHp;
@@ -15,11 +15,21 @@ namespace FrogBattle.Classes
         protected double CurrentEnergy = 0;
         private readonly List<StatusEffect> StatusEffects = [];
         private readonly List<StatusEffect> MarkedForDeath = [];
-        public readonly string internalName;
-        public Character(string name, Dictionary<Stats, double> overrides = null)
+        public readonly string _internalName;
+        
+        #region Events
+        public event EventHandler<Damage> DamageTaken;  // FINALLY I UNDERSTAND HOW THIS PMO SHIT WORKS
+        public event EventHandler<ITakesAction> TurnStarted;
+        public event EventHandler<StatusEffect> EffectGained;
+        public event EventHandler<StatusEffect> EffectRemoved;
+        public event EventHandler<IPoolChange> PoolChanged;
+        // STILL NO IDEA HOW EventArgs WORKS LMAO
+        #endregion
+        public Character(string name, Battle battle, Dictionary<Stats, double> overrides = null)
         {
-            internalName = GetType().BaseType.Name.camelCase() + '.' + GetType().Name.camelCase();
+            _internalName = typeof(Character).Name.camelCase() + '.' + GetType().Name.camelCase();
             Name = name;
+            ParentBattle = battle;
             Base = new Dictionary<Stats, double>(Registry.DefaultStats);
             if (overrides != null)
             {
@@ -38,12 +48,36 @@ namespace FrogBattle.Classes
         {
             get
             {
-                return CurrentHp;
+                return CurrentHp + GetEffects<StatusEffect.Overheal>().Sum(x => x.Amount);
             }
             set
             {
-                CurrentHp = value;
-                if (CurrentHp > GetStat(Stats.MaxHp)) CurrentHp = GetStat(Stats.MaxHp);
+                var diff = Hp - value;
+                if (diff > 0)
+                {
+                    // If we're taking damage (difference between current Hp and target Hp is positive)
+                    var overheals = GetEffects<StatusEffect.Overheal>();
+                    foreach (var item in overheals)
+                    {
+                        // If there's more overheal than damage dealt, reduce overheal value and skip everything else
+                        if (item.Amount > diff)
+                        {
+                            item.Amount -= diff;
+                            return;
+                        }
+                        // Otherwise, deduct the overheal amount from the damage dealt, remove the overheal entirely, and continue through the list
+                        diff -= item.Amount;
+                        StatusEffects.Remove(item.Parent);
+                    }
+                    // If our damage still wasn't beaten, CurrentHp takes the hit
+                    CurrentHp -= diff;
+                }
+                else
+                {
+                    // If we're healing, simply add the Hp and check MaxHp
+                    CurrentHp = value;
+                    if (CurrentHp > GetStat(Stats.MaxHp)) CurrentHp = GetStat(Stats.MaxHp);
+                }
             }
         }
         public double Mana
@@ -56,6 +90,7 @@ namespace FrogBattle.Classes
             {
                 CurrentMana = value;
                 if (CurrentMana > GetStat(Stats.MaxMana)) CurrentMana = GetStat(Stats.MaxMana);
+                if (CurrentMana <  0) CurrentMana = 0;
             }
         }
         public double Energy
@@ -68,6 +103,7 @@ namespace FrogBattle.Classes
             {
                 CurrentEnergy = value;
                 if (CurrentEnergy > GetStat(Stats.MaxEnergy)) CurrentEnergy = GetStat(Stats.MaxEnergy);
+                if (CurrentEnergy < 0) CurrentEnergy = 0;
             }
         }
         public double Special { get; set; }
@@ -79,11 +115,11 @@ namespace FrogBattle.Classes
             }
             set
             {
-                double diff = value - Shield;
-                if (diff < 0)
+                double diff = Shield - value;
+                if (diff > 0)
                 {
-                    diff *= -1;
-                    foreach (var item in StatusEffects.SelectMany((x) => x.GetEffects<StatusEffect.Shield>().Values))
+                    var shields = StatusEffects.SelectMany((x) => x.GetEffects<StatusEffect.Shield>().Values);
+                    foreach (var item in shields)
                     {
                         if (diff >= item.Amount)
                         {
@@ -99,6 +135,7 @@ namespace FrogBattle.Classes
                 }
                 else
                 {
+                    if (diff == 0) return;
                     throw new NotImplementedException();
                 }
             }
@@ -144,6 +181,7 @@ namespace FrogBattle.Classes
                 return 10000 / GetStat(Stats.Spd);
             }
         }
+        public Battle ParentBattle { get; }
         public bool TakeAction()
         {
             // HOW
@@ -162,8 +200,8 @@ namespace FrogBattle.Classes
         }
         private void StartOfTurnChecks()
         {
-            MarkedForDeath.AddRange(StatusEffects.FindAll((x) => !x.Is(StatusEffect.Props.StartTick)));
-            foreach (var item in StatusEffects.FindAll((x) => x.Is(StatusEffect.Props.StartTick)))
+            MarkedForDeath.AddRange(StatusEffects.FindAll((x) => !x.Is(StatusEffect.Flags.StartTick)));
+            foreach (var item in StatusEffects.FindAll((x) => x.Is(StatusEffect.Flags.StartTick)))
             {
                 if (item.Expire()) StatusEffects.Remove(item);
             }
@@ -177,30 +215,30 @@ namespace FrogBattle.Classes
             MarkedForDeath.Clear();
         }
         /// <summary>
-        /// Creates one or multiple instances of <see cref="Damage"/> for an attack.
+        /// Decides whether an attack hits based on the given hit rate and bonuses of the fighter.
+        /// Null hit rate guarantees a hit.
         /// </summary>
-        /// <param name="target">The target of the attack.</param>
-        /// <param name="scalar">The stat to use for calculating the ratio.</param>
-        /// <param name="ratio">The percentage of the scalar to use for the base damage amount.</param>
-        /// <param name="type">The type of the damage.</param>
-        /// <param name="defIgnore">The amount of the target's defense to ignore.</param>
-        /// <param name="typeResPen">The percentage of damage-type-specific resistance of the target to ignore.</param>
-        /// <param name="split">The splitting mode of this damage. Each number represents
-        /// the amount of damage (from the total sum) that will go to that slice.
-        /// Input as many as you want.</param>
-        /// <returns>An <see cref="IEnumerator{T}"/> of <see cref="Damage"/>, iterating through every instance of damage.</returns>
-        public IEnumerator<Damage> AttackDamage(Character target, Stats scalar, double ratio, DamageTypes type, double defIgnore, double typeResPen, params uint[] split)
+        /// <param name="hitRate">The base hit rate of the attack.</param>
+        /// <returns>True if RNG is less than hitRate or hitRate is null, false otherwise.</returns>
+        private bool IsHit(double? hitRate)
         {
-            var props = new Damage.Properties(type, DamageSources.Attack, DefenseIgnore: defIgnore, TypeResPen: typeResPen);
-            if (split.Length == 0) yield return new(this, target, GetStat(scalar) * ratio, props with { Crit = IsCrit });
-            else
+            return Battle.RNG < hitRate + GetStat(Stats.HitRateBonus) || hitRate == null;
+        }
+        public void TakeDamage(Damage damage)
+        {
+            DamageTaken.Invoke(this, damage);   // YES I FIGURED OUT EVENTS LETS GOO
+            var damageAmount = damage.Amount;
+            if (Barrier > 0)
             {
-                long sum = split.Sum((x) => x);
-                foreach (uint i in split)
-                {
-                    yield return new(this, target, GetStat(scalar) * i * ratio / sum, props with { Crit = IsCrit });
-                }
+                Barrier -= 1;
+                return;
             }
+            if (Shield > 0)
+            {
+                damageAmount = damage.Amount - Shield;
+                Shield -= damage.Amount;
+            }
+            if (damageAmount > 0) Hp -= damageAmount;
         }
         // to do: implement final damage calculations for additional damage calculations
         /// <summary>
@@ -240,19 +278,19 @@ namespace FrogBattle.Classes
         /// <summary>
         /// Applies a pool change to this fighter.
         /// </summary>
-        /// <param name="value">Change to apply.</param>
-        public void ApplyChange(Ability.PoolChange change)
+        /// <param name="change">Change to apply.</param>
+        public void ApplyChange(IPoolChange change)
         {
             switch (change.Pool)
             {
                 case Pools.Hp:
-                    Hp += change.Op.Apply(change.Amount, Base[change.Pool.Max()]);
+                    Hp += change.Amount;
                     break;
                 case Pools.Mana:
-                    Mana += change.Op.Apply(change.Amount, Base[change.Pool.Max()]);
+                    Mana += change.Amount;
                     break;
                 case Pools.Energy:
-                    Energy += change.Op.Apply(change.Amount, Base[change.Pool.Max()]);
+                    Energy += change.Amount;
                     break;
                 case Pools.Special:
                     Special += change.Amount;
@@ -267,5 +305,6 @@ namespace FrogBattle.Classes
                     throw new InvalidOperationException($"Unknown pool item \"{change.Pool}\"");
             }
         }
+        protected abstract Ability SelectAbility(Character target, object selector);
     }
 }

@@ -21,5 +21,13 @@ namespace FrogBattle
 
             return string.Format(template, args);
         }
+        public static string Translate(KeyValuePair<string, object[]> kvp, params object[] args)
+        {
+            return Translate(kvp.Key, [..kvp.Value, ..args]);
+        }
+        public static string Translate((string, object[]) tuple, params object[] args)
+        {
+            return Translate(tuple.Item1, [..tuple.Item2, ..args]);
+        }
     }
 }

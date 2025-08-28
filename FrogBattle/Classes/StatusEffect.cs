@@ -15,7 +15,7 @@ namespace FrogBattle.Classes
         private readonly uint uid;
         private readonly Dictionary<object, Effect> effects = [];
         
-        public StatusEffect(Character source, Character target, uint turns, uint maxStacks, Props properties, params Effect[] effects)
+        public StatusEffect(Character source, Character target, uint turns, uint maxStacks, Flags properties, params Effect[] effects)
         {
             Source = source;
             Target = target;
@@ -40,21 +40,22 @@ namespace FrogBattle.Classes
         public Character Source { get; }
         public Character Target { get; }
         public uint Turns { get; private set; }
+        public uint Stacks { get; set; }
         public uint MaxStacks { get; private set; }
-        public Props Properties { get; private set; }
+        public Flags Properties { get; private set; }
 
-        [Flags] public enum Props
+        [Flags] public enum Flags
         {
-            None        = 1 << 0,
-            Debuff      = 1 << 1,
-            Unremovable = 1 << 2,
-            Hidden      = 1 << 3,
-            Infinite    = 1 << 4,
-            StartTick   = 1 << 5,
-            StackTurns  = 1 << 6,
+            None = 0,
+            Debuff      = 1 << 0,
+            Unremovable = 1 << 1,
+            Hidden      = 1 << 2,
+            Infinite    = 1 << 3,
+            StartTick   = 1 << 4,
+            StackTurns  = 1 << 5,
         }
 
-        public bool Is(Props p)
+        public bool Is(Flags p)
         {
             return Properties.HasFlag(p);
         }
@@ -64,7 +65,7 @@ namespace FrogBattle.Classes
         /// <returns>True if the StatusEffect has run out of turns and should be removed, false otherwise.</returns>
         public bool Expire()
         {
-            if (Is(Props.Infinite) || (--Turns > 0)) return false;
+            if (Is(Flags.Infinite) || (--Turns > 0)) return false;
             else return true;
         }
         public StatusEffect AddEffect(Effect effect)
@@ -105,8 +106,9 @@ namespace FrogBattle.Classes
         }
         public string Display()
         {
-            char arrow = Is(Props.Debuff) ? '\u2193' : '\u2191';
-            if (Is(Props.Infinite)) return $"{arrow}[{Name}]";
+            // '↑' = '\u2191'; '↓' = '\u2913'
+            string arrow = Stacks <= 4 ? new(Is(Flags.Debuff) ? '↓' : '↑', (int)Stacks) : (Is(Flags.Debuff) ? $"↓{Stacks}" : $"↑{Stacks}");
+            if (Is(Flags.Infinite)) return $"{arrow}[{Name}]";
             else return $"{arrow}[{Name} ({Turns})]";
         }
         internal abstract class Effect
@@ -234,14 +236,17 @@ namespace FrogBattle.Classes
             {
                 _amount = amount;
                 Op = op;
-                Props = props with { Crit = false, Source = DamageSources.DamageOverTime };
+                Props = props with { CanCrit = false, Source = DamageSources.DamageOverTime };
             }
             /// <summary>
             /// Automatically applies the operator based on the fighter it is attached to.
             /// </summary>
             public double Amount
             {
-                get => Op.Apply(_amount, TargetFighter.Hp);
+                get
+                {
+                    return Op.Apply(_amount, TargetFighter.Hp);
+                }
             }
             private Operators Op { get; }
             public Damage.Properties Props { get; }
@@ -287,6 +292,44 @@ namespace FrogBattle.Classes
             public override object GetKey() => (typeof(DamageTypeRES), Type);
         }
         /// <summary>
+        /// Influences damage coming from a specific source. Percentage only.
+        /// </summary>
+        internal class DamageSourceBonus : Effect
+        {
+            private readonly double _amount;
+            public DamageSourceBonus(StatusEffect parent, double amount, DamageSources source) : base(parent, amount >= 0)
+            {
+                _amount = amount;
+                Source = source;
+            }
+            public double Amount
+            {
+                get => _amount;
+            }
+            public DamageSources Source { get; }
+            public override object[] GetFormatArgs() => [Amount, Source];
+            public override object GetKey() => (typeof(DamageTypeBonus), Source);
+        }
+        /// <summary>
+        /// Influences damage resistance against a specific source. Percentage only.
+        /// </summary>
+        internal class DamageSourceRES : Effect
+        {
+            private readonly double _amount;
+            public DamageSourceRES(StatusEffect parent, double amount, DamageSources source) : base(parent, amount >= 0)
+            {
+                _amount = amount;
+                Source = source;
+            }
+            public double Amount
+            {
+                get => _amount;
+            }
+            public DamageSources Source { get; }
+            public override object[] GetFormatArgs() => [Amount, Source];
+            public override object GetKey() => (typeof(DamageTypeRES), Source);
+        }
+        /// <summary>
         /// Influences damage dealt, positive values are good. Percentage only.
         /// </summary>
         internal class DamageBonus : Effect
@@ -319,6 +362,24 @@ namespace FrogBattle.Classes
             }
             public override object[] GetFormatArgs() => [Amount];
             public override object GetKey() => typeof(DamageRES);
+        }
+        internal class Overheal : Effect
+        {
+            private double currentAmount;
+            public Overheal(StatusEffect parent, double amount) : base(parent, true)
+            {
+                currentAmount = amount;
+            }
+            public double Amount
+            {
+                get => currentAmount;
+                set
+                {
+                    currentAmount -= value;
+                }
+            }
+            public override object[] GetFormatArgs() => [Amount];
+            public override object GetKey() => typeof(Overheal);
         }
     }
 }
