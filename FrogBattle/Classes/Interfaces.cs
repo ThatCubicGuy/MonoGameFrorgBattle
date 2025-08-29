@@ -12,32 +12,34 @@ namespace FrogBattle.Classes
         /// The action of the ITakesAction entity.
         /// </summary>
         /// <returns>True if the turn should end, false otherwise.</returns>
-        bool TakeAction();
+        void TakeAction();
     }
 
     // anything that has a turn in the ActionBar
     internal interface IHasTurn : ITakesAction
     {
-        double ActionValue { get; }
+        double BaseActionValue { get; }
     }
 
-    internal interface IAttack
+    internal interface IHasTarget
     {
         Character Parent { get; }
-        Character MainTarget { get; }
-        double Ratio { get; }
-        Stats Scalar { get; }
-        double? HitRate { get; }
-        bool IndependentHitRate { get; }
-        DamageTypes Type { get; }
-        double DefenseIgnore { get; }
-        double TypeResPen { get; }
-        uint[] Split { get; }
+        Character Target { get; }
+    }
+
+    internal interface IAttack : IHasTarget
+    {
+        AttackInfo AttackInfo { get; }
+    }
+
+    internal interface IAppliesEffect : IHasTarget
+    {
+        EffectInfo EffectInfo { get; }
+        bool ApplyEffect(Character target);
     }
 
     internal interface IPoolChange
     {
-
         public Character Source { get; }
         public Character Target { get; }
         /// <summary>

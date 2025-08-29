@@ -113,16 +113,6 @@ namespace FrogBattle.Classes
     }
     internal static class FighterExtensions
     {
-        public static string ToConsoleString(this Character src)
-        {
-            return $"{src.Name}\t\t[{src.Hp} HP, " +
-                $"{src.GetStat(Stats.Atk)} ATK, " +
-                $"{src.GetStat(Stats.Def)} DEF, " +
-                $"{src.GetStat(Stats.Spd)} SPD, " +
-                $"{src.GetStat(Stats.Dex)} DEX, " +
-                $"{src.Mana} MP, " +
-                $"{src.Energy}/{src.GetStat(Stats.MaxEnergy)}";
-        }
         public static string ToConsoleString(this Character src, string format)
         {
             throw new NotImplementedException();
@@ -132,35 +122,75 @@ namespace FrogBattle.Classes
     {
         public static bool IsHit(this IAttack ability, Character Target)
         {
-            return ability.HitRate == null || Battle.RNG >= ability.HitRate + ability.Parent.GetStat(Stats.HitRateBonus) - Target.GetStat(Stats.Dex) / 100;
+            return ability.AttackInfo.HitRate == null || BattleManager.RNG < (ability.AttackInfo.HitRate + ability.Parent.GetStat(Stats.HitRateBonus) - (Target.GetStat(Stats.Dex) / 100));
         }
-        public static List<Damage> AttackDamage(this IAttack ability, Character Target)
+        /// <summary>
+        /// Creates a list containing every instance of damage dealt
+        /// </summary>
+        /// <param name="ability">The ability for which to calculate the damage(s).</param>
+        /// <param name="target">Target of the damages.</param>
+        /// <returns></returns>
+        /// <exception cref="InvalidDataException">Ability damage split should not be longer than 16.</exception>
+        public static List<Damage> AttackDamage(this IAttack ability, Character target)
         {
-            if (ability.Split.Length > 16) throw new InvalidDataException("Cannot split damage into more than 16 parts!");
+            if (ability.AttackInfo.Split.Length > 16) throw new InvalidDataException("Cannot split damage into more than 16 parts!");
             var result = new List<Damage>();
-            var props = new Damage.Properties(
-                        Type: ability.Type,
-                        Source: DamageSources.Attack,
-                        DefenseIgnore: ability.DefenseIgnore,
-                        TypeResPen: ability.TypeResPen,
-                        CanCrit: true
-                    );
-            if (!ability.IndependentHitRate && !ability.IsHit(Target))
+            if (!ability.AttackInfo.IndependentHitRate && !ability.IsHit(target))
             {
+                Console.WriteLine("BAD");
                 return null;
             }
-            if (ability.Split.Length == 0)
+            if (ability.AttackInfo.Split == null || ability.AttackInfo.Split.Length == 0)
             {
-                result.Add(ability.IsHit(Target) && ability.IndependentHitRate ? new(ability.Parent, Target,
-                ability.Ratio * ability.Parent.GetStat(ability.Scalar), props) : null);
+                Console.WriteLine("GOOD i think");
+                // If it's not IHR then hit or not doesn't matter, we calculated that already.
+                // Though here it technically shouldn't matter at all. What's the point of
+                // having IndependentHitRate when your split is 0...
+                result.Add(!ability.AttackInfo.IndependentHitRate || ability.IsHit(target) ? new(ability.Parent, target,
+                ability.AttackInfo.Ratio * ability.Parent.GetStat(ability.AttackInfo.Scalar), ability.AttackInfo.DamageInfo) : null);
             }
             else
             {
-                long sum = ability.Split.Sum((x) => x);
-                foreach (var i in ability.Split)
+                long sum = ability.AttackInfo.Split.Sum((x) => x);
+                foreach (var i in ability.AttackInfo.Split)
                 {
-                    result.Add(ability.IsHit(Target) && ability.IndependentHitRate ? new(ability.Parent, Target,
-                    ability.Ratio * ability.Parent.GetStat(ability.Scalar) * i / sum, props) : null);
+                    result.Add(!ability.AttackInfo.IndependentHitRate || ability.IsHit(target) ? new(ability.Parent, target,
+                    ability.AttackInfo.Ratio * ability.Parent.GetStat(ability.AttackInfo.Scalar) * i / sum, ability.AttackInfo.DamageInfo) : null);
+                }
+            }
+            return result.All(x => x == null) ? null : result;
+        }
+    }
+    internal static class ConsoleBattleExtensions
+    {
+        public static string Console_ToString(this Character src)
+        {
+            return string.Join(' ', $"{src.Name}{(src.Name.Length <= 7 ? '\t' : string.Empty)}\t\t[{src.Hp:0} HP,",
+                $"{src.GetStat(Stats.Atk):0} ATK,",
+                $"{src.GetStat(Stats.Def):0} DEF,",
+                $"{src.GetStat(Stats.Spd):0} SPD,",
+                $"{src.GetStat(Stats.Dex):0} DEX,",
+                $"{src.Mana:0} MP,",
+                $"{src.Energy:0}/{src.GetStat(Stats.MaxEnergy)}] ") + 
+                string.Join(' ', src.GetEffects().Select((x) => x.Display()));
+        }
+        public static Ability Console_SelectAbility(this Character src)
+        {
+            Ability result = null;
+            bool repeat = true;
+            while (repeat)
+            {
+                repeat = false;
+                Console.Write("{0} selects ability... ", src.Name);
+                try
+                {
+                    int selector = int.Parse(Console.ReadLine());
+                    result = src.SelectAbility(src.EnemyTeam.Single(), selector);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    repeat = true;
                 }
             }
             return result;

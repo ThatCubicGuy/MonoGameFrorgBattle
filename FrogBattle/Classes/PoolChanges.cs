@@ -19,7 +19,8 @@ namespace FrogBattle.Classes
         /// <param name="amount">The amount (of a certain pool), pre-calculations. Usually a flat value.</param>
         public Reward(Character source, Character target, double amount, Pools pool, Operators op)
         {
-            if (pool == Pools.Hp) throw new ArgumentOutOfRangeException(nameof(pool), "Please use the Healing class for restoring HP.");
+            // You can use the cost / reward system for gaining and consuming HP.
+            // Do be wary not to use it for actual healing.
             Source = source;
             Target = target;
             _baseAmount = amount;
@@ -56,10 +57,7 @@ namespace FrogBattle.Classes
         }
         public Pools Pool { get; }
         public Operators Op { get; }
-        public Reward Clone()
-        {
-            return MemberwiseClone() as Reward;
-        }
+        public Reward Clone() => MemberwiseClone() as Reward;
     }
     /// <summary>
     /// The opposite of rewards. Positive values are deducted. Taxed before using the ability.
@@ -71,7 +69,7 @@ namespace FrogBattle.Classes
         {
             Source = source;
             Target = target;
-            _baseAmount = -amount;
+            _baseAmount = -1 * amount;
             Pool = pool;
             Op = op;
         }
@@ -101,5 +99,6 @@ namespace FrogBattle.Classes
         }
         public Pools Pool { get; }
         public Operators Op { get; }
+        public Cost Clone() => MemberwiseClone() as Cost;
     }
 }

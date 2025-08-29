@@ -1,5 +1,6 @@
-﻿using FrogBattle;
+﻿using FrogBattle.Classes;
 using System;
+using System.Linq;
 
 internal class Program
 {
@@ -14,7 +15,16 @@ internal class Program
         {
             try
             {
-                var game = new ConsoleFrorgBattle();
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write("Starting ");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write("Frog");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write("Battle");
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write(" in Console Mode...\n");
+                
+                var game = new BattleManager();
                 return game.Run();
             }
             catch (Exception ex)
@@ -25,7 +35,7 @@ internal class Program
         }
         else
         {
-            Console.WriteLine($"Invalid argument(s): {args}");
+            Console.WriteLine($"Invalid argument(s): {args.ToList()}");
         }
         return 0;
     }

@@ -10,37 +10,35 @@ namespace FrogBattle.Characters
 {
     internal class Snake : Character
     {
-        private readonly FrozenDictionary<int, Type> _abilities = new Dictionary<int, Type>()
+        public Snake(string name, BattleManager battle, bool team) : base(name, battle, team)
         {
-            { 1, typeof(ThrowGrenade) },
         }
-        .ToFrozenDictionary();
-        public Snake(string name, Battle battle) : base(name, battle)
-        {
 
-        }
-        public class ThrowGrenade : BlastAttack
-        {
-            public static Damage.Properties DamageProps => new
-                (
-                    Type: DamageTypes.Blast,
-                    Source: DamageSources.Attack,
-                    DefenseIgnore: 0,
-                    TypeResPen: 0
-                );
-            public ThrowGrenade(Character source, Character target) : base(source, new(typeof(ThrowGrenade).Name, false), target,
-
-                ratio: 1.15, scalar: Stats.Atk, hitRate: 0.80, independentHitRate: false, props: DamageProps, split: [], falloff: 0.5) {
-                WithGenericManaCost(13);
-            }
-        }
-        protected override Ability SelectAbility(Character target, object selector)
+        public override Ability SelectAbility(Character target, int selector)
         {
             return selector switch
             {
+                0 => new SkipTurn(this),
                 1 => new ThrowGrenade(this, target),
-                _ => throw new ArgumentOutOfRangeException(nameof(selector), $"Invalid ability number: {selector}")
+                _ => throw new ArgumentOutOfRangeException($"Invalid ability number: {selector}")
             };
+        }
+
+        public class ThrowGrenade : BlastAttack
+        {
+            public static DamageInfo DamageProps => new DamageInfo() with
+            {
+                Type = DamageTypes.Blast,
+                Source = DamageSources.Attack,
+                DefenseIgnore = 0,
+                TypeResPen = 0,
+                CanCrit = true
+            };
+            public ThrowGrenade(Character source, Character target) : base(source, target, new(typeof(ThrowGrenade).Name, false),
+                falloff: 0.5,
+                new(Ratio: 1.15, Scalar: Stats.Atk, HitRate: 0.80, IndependentHitRate: false, DamageInfo: DamageProps, Split: [])) {
+                WithGenericManaCost(13);
+            }
         }
     }
 }

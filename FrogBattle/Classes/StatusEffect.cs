@@ -11,9 +11,9 @@ namespace FrogBattle.Classes
 {
     internal class StatusEffect
     {
-        private static uint uid_count = 0;
-        private readonly uint uid;
+        private readonly object _uid;
         private readonly Dictionary<object, Effect> effects = [];
+        private uint stacks = 1;
         
         public StatusEffect(Character source, Character target, uint turns, uint maxStacks, Flags properties, params Effect[] effects)
         {
@@ -26,21 +26,51 @@ namespace FrogBattle.Classes
             {
                 this.effects[mod.GetKey()] = mod;
             }
-            uid = uid_count;
-            uid_count += 1;
+            _uid = GetType();
         }
         public StatusEffect(StatusEffect other) : this(other.Source, other.Target, other.Turns, other.MaxStacks, other.Properties)
         {
             effects = new(other.effects);
-            uid = other.uid;
-            uid_count -= 1;
+            _uid = other._uid;
+        }
+
+        public static bool operator ==(StatusEffect left, StatusEffect right)
+        {
+            return left?.Equals(right) ?? right is null;
+        }
+        public static bool operator !=(StatusEffect left, StatusEffect right)
+        {
+            return !(left == right);
+        }
+        public override bool Equals(object obj)
+        {
+            if (this is null) return obj is null;
+            if (obj is not StatusEffect eff) return false;
+            return _uid.Equals(eff._uid);
+        }
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
         }
 
         public string Name { get; set; }
+        /// <summary>
+        /// The character that applied this effect.
+        /// </summary>
         public Character Source { get; }
+        /// <summary>
+        /// The character to which this effect is applied.
+        /// </summary>
         public Character Target { get; }
         public uint Turns { get; private set; }
-        public uint Stacks { get; set; }
+        public uint Stacks
+        {
+            get => stacks;
+            set
+            {
+                stacks = Math.Min(value, MaxStacks);
+            }
+        }
         public uint MaxStacks { get; private set; }
         public Flags Properties { get; private set; }
 
@@ -65,6 +95,9 @@ namespace FrogBattle.Classes
         /// <returns>True if the StatusEffect has run out of turns and should be removed, false otherwise.</returns>
         public bool Expire()
         {
+            // Custom logic for stuns
+            //if (Target.Stun > 0) ;
+            // not yet lmao
             if (Is(Flags.Infinite) || (--Turns > 0)) return false;
             else return true;
         }
@@ -74,23 +107,43 @@ namespace FrogBattle.Classes
             return this;
         }
         /// <summary>
+        /// Watch this method create the most beautiful of descriptions for all of your effect displaying needs.
+        /// </summary>
+        /// <returns>A magical string of characters.</returns>
+        public string CreateArgs(string format = null)
+        {
+            format = format?.ToLower() ?? string.Empty;
+            string result = string.Empty;
+            foreach (Effect effect in effects.Values)
+            {
+                result = string.Join(", ", result, effect.GetLocalizedText());
+            }
+            result = result.TrimStart(',', ' ') + (Is(Flags.Infinite) ? " forever" : $" for {Turns} turns");
+            if (format.Contains('n'))
+            {
+                return Name + $" ({result})";
+            }
+            return result;
+        }
+        /// <summary>
         /// Get all effects within this <see cref="StatusEffect"/>.
         /// </summary>
         /// <returns>A dictionary containing every effect.</returns>
-        public Dictionary<object, Effect> GetEffects()
+        public Dictionary<object, Effect> GetSubeffects()
         {
             return effects;
         }
         /// <summary>
-        /// Get all effects of type <typeparamref name="TResult"/> within this <see cref="StatusEffect"/>.
+        /// Get all subeffects of type <typeparamref name="TResult"/> within this <see cref="StatusEffect"/>.
         /// </summary>
         /// <returns>A dictionary containing every effect of type <typeparamref name="TResult"/>.</returns>
-        public Dictionary<object, TResult> GetEffects<TResult>() where TResult : Effect
+        public Dictionary<object, TResult> GetSubeffects<TResult>() where TResult : Effect
         {
             return effects.OfType<KeyValuePair<object, TResult>>().ToDictionary();
         }
         /// <summary>
-        /// Get the single effect of type <typeparamref name="TResult"/> contained within effects.
+        /// Get the single effect of type <typeparamref name="TResult"/> contained within effects, or
+        /// a default value if there are none.
         /// If effects has more than one <typeparamref name="TResult"/> effect, throws an exception.
         /// </summary>
         /// <typeparam name="TResult"></typeparam>
@@ -102,12 +155,12 @@ namespace FrogBattle.Classes
         }
         public Dictionary<object, Modifier> GetModifiers()
         {
-            return (Dictionary<object, Modifier>)effects.OfType<KeyValuePair<object, Modifier>>();
+            return effects.OfType<KeyValuePair<object, Modifier>>().ToDictionary();
         }
         public string Display()
         {
             // '↑' = '\u2191'; '↓' = '\u2913'
-            string arrow = Stacks <= 4 ? new(Is(Flags.Debuff) ? '↓' : '↑', (int)Stacks) : (Is(Flags.Debuff) ? $"↓{Stacks}" : $"↑{Stacks}");
+            string arrow = (Stacks <= 4) ? new(Is(Flags.Debuff) ? '↓' : '↑', (int)Stacks) : (Is(Flags.Debuff) ? $"↓{Stacks}" : $"↑{Stacks}");
             if (Is(Flags.Infinite)) return $"{arrow}[{Name}]";
             else return $"{arrow}[{Name} ({Turns})]";
         }
@@ -119,7 +172,13 @@ namespace FrogBattle.Classes
                 IsBuff = buff;
             }
             public StatusEffect Parent { get; }
+            /// <summary>
+            /// The character that applied this effect's parent.
+            /// </summary>
             public Character SourceFighter => Parent.Source;
+            /// <summary>
+            /// The character to which this effect's parent is applied.
+            /// </summary>
             public Character TargetFighter => Parent.Target;
             public bool IsBuff { get; }
             public string TranslationKey { get => "effect.type." + GetType().Name.camelCase(); }
@@ -145,7 +204,7 @@ namespace FrogBattle.Classes
             }
             public Stats Stat { get; }
             private Operators Op { get; }
-            public override object[] GetFormatArgs() => [Amount, Stat];
+            public override object[] GetFormatArgs() => [Op == Operators.Additive ? Amount : ((_amount > 0 ? '+' : string.Empty) + (_amount * 100).ToString("P")), Stat];
             public override object GetKey() => (typeof(Modifier), Stat);
 
         }
@@ -166,8 +225,7 @@ namespace FrogBattle.Classes
                 get => currentAmount;
                 set
                 {
-                    currentAmount = value;
-                    if (currentAmount > maxAmount) currentAmount = maxAmount;
+                    currentAmount = Math.Min(value, maxAmount);
                 }
             }
             public DamageTypes? ShieldType { get; }
@@ -199,8 +257,7 @@ namespace FrogBattle.Classes
                 get => currentCount;
                 set
                 {
-                    currentCount = value;
-                    if (currentCount > maxCount) currentCount = maxCount;
+                    currentCount = Math.Min(value, maxCount);
                 }
             }
             public override object[] GetFormatArgs() => [Count];
@@ -226,31 +283,34 @@ namespace FrogBattle.Classes
             }
             public Pools Pool { get; }
             private Operators Op { get; }
-            public override object[] GetFormatArgs() => [Amount, Pool];
+            public override object[] GetFormatArgs() => [Op == Operators.Additive ? Amount : ((_amount > 0 ? '+' : string.Empty) + (_amount * 100).ToString("P")), Pool];
             public override object GetKey() => (typeof(Drain), Pool);
         }
         internal class DamageOverTime : Effect
         {
             private readonly double _amount;
-            public DamageOverTime(StatusEffect parent, double amount, Operators op, Damage.Properties props) : base(parent, false)
+            public DamageOverTime(StatusEffect parent, double amount, Operators op, DamageInfo props) : base(parent, false)
             {
                 _amount = amount;
                 Op = op;
-                Props = props with { CanCrit = false, Source = DamageSources.DamageOverTime };
+                DamageProps = props with { CanCrit = false, Source = DamageSources.DamageOverTime };
             }
             /// <summary>
             /// Automatically applies the operator based on the fighter it is attached to.
             /// </summary>
             public double Amount
             {
-                get
-                {
-                    return Op.Apply(_amount, TargetFighter.Hp);
-                }
+                get => Op.Apply(_amount, TargetFighter.Hp);
             }
             private Operators Op { get; }
-            public Damage.Properties Props { get; }
-            public override object[] GetFormatArgs() => [Amount];
+            public DamageInfo DamageProps { get; }
+            /// <summary>
+            /// Get the damage associated with this DoT instance, optionally at a different ratio.
+            /// </summary>
+            /// <param name="ratio">The ratio of DoT amount to actual Damage.</param>
+            /// <returns></returns>
+            public Damage GetDamage() => new(SourceFighter, TargetFighter, Amount, DamageProps);
+            public override object[] GetFormatArgs() => [GetDamage().Amount];
             public override object GetKey() => typeof(DamageOverTime);
         }
         /// <summary>
@@ -269,7 +329,7 @@ namespace FrogBattle.Classes
                 get => _amount;
             }
             public DamageTypes Type { get; }
-            public override object[] GetFormatArgs() => [Amount, Type];
+            public override object[] GetFormatArgs() => [(Amount > 0 ? '+' : string.Empty) + Amount.ToString("P"), Type];
             public override object GetKey() => (typeof(DamageTypeBonus), Type);
         }
         /// <summary>
@@ -288,7 +348,7 @@ namespace FrogBattle.Classes
                 get => _amount;
             }
             public DamageTypes Type { get; }
-            public override object[] GetFormatArgs() => [Amount, Type];
+            public override object[] GetFormatArgs() => [(Amount > 0 ? '+' : string.Empty) + Amount.ToString("P"), Type];
             public override object GetKey() => (typeof(DamageTypeRES), Type);
         }
         /// <summary>
@@ -307,7 +367,7 @@ namespace FrogBattle.Classes
                 get => _amount;
             }
             public DamageSources Source { get; }
-            public override object[] GetFormatArgs() => [Amount, Source];
+            public override object[] GetFormatArgs() => [(Amount > 0 ? '+' : string.Empty) + Amount.ToString("P"), Source];
             public override object GetKey() => (typeof(DamageTypeBonus), Source);
         }
         /// <summary>
@@ -326,7 +386,7 @@ namespace FrogBattle.Classes
                 get => _amount;
             }
             public DamageSources Source { get; }
-            public override object[] GetFormatArgs() => [Amount, Source];
+            public override object[] GetFormatArgs() => [(Amount > 0 ? '+' : string.Empty) + Amount.ToString("P"), Source];
             public override object GetKey() => (typeof(DamageTypeRES), Source);
         }
         /// <summary>
@@ -343,7 +403,7 @@ namespace FrogBattle.Classes
             {
                 get => _amount;
             }
-            public override object[] GetFormatArgs() => [Amount];
+            public override object[] GetFormatArgs() => [(Amount > 0 ? '+' : string.Empty) + Amount.ToString("P")];
             public override object GetKey() => typeof(DamageBonus);
         }
         /// <summary>
@@ -360,7 +420,7 @@ namespace FrogBattle.Classes
             {
                 get => _amount;
             }
-            public override object[] GetFormatArgs() => [Amount];
+            public override object[] GetFormatArgs() => [(Amount > 0 ? '+' : string.Empty) + Amount.ToString("P")];
             public override object GetKey() => typeof(DamageRES);
         }
         internal class Overheal : Effect
@@ -380,6 +440,18 @@ namespace FrogBattle.Classes
             }
             public override object[] GetFormatArgs() => [Amount];
             public override object GetKey() => typeof(Overheal);
+        }
+        internal class Stun : Effect
+        {
+            public Stun(StatusEffect parent) : base(parent, false)
+            {
+            }
+            public uint Count
+            {
+                get => Parent.Turns;
+            }
+            public override object[] GetFormatArgs() => [Count];
+            public override object GetKey() => typeof(Stun); // might add stun type like freeze, etc
         }
     }
 }

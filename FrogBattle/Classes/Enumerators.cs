@@ -62,7 +62,7 @@ namespace FrogBattle.Classes
         Additive,
         Multiplicative
     }
-    public enum Chances
+    public enum ChanceTypes
     {
         Fixed,
         Base
@@ -96,23 +96,24 @@ namespace FrogBattle.Classes
     public enum TextTypes
     {
         Start,
-        Damage1,
-        Damage2,
-        Damage3,
-        Damage4,
-        Damage5,
-        Damage6,
-        Damage7,
-        Damage8,
-        Damage9,
-        Damage10,
-        Damage11,
-        Damage12,
-        Damage13,
-        Damage14,
-        Damage15,
-        Damage16,
-        End,
-        Miss
+        Damage1 = 1,
+        Damage2 = 2,
+        Damage3 = 3,
+        Damage4 = 4,
+        Damage5 = 5,
+        Damage6 = 6,
+        Damage7 = 7,
+        Damage8 = 8,
+        Damage9 = 9,
+        Damage10 = 10,
+        Damage11 = 11,
+        Damage12 = 12,
+        Damage13 = 13,
+        Damage14 = 14,
+        Damage15 = 15,
+        Damage16 = 16,
+        ApplyEffect,
+        Miss,
+        End
     }
 }

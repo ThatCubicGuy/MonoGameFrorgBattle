@@ -26,6 +26,7 @@ namespace FrogBattle.Classes
                 { Stats.EffectRES, 0 },
                 { Stats.ManaCost, 1 },
                 { Stats.ManaRegen, 1 },
+                { Stats.EnergyRecharge, 1 },
                 { Stats.IncomingHealing, 1 },
                 { Stats.OutgoingHealing, 1 },
                 { Stats.ShieldToughness, 1 }

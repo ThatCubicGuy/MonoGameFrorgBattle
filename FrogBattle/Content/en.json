@@ -16,20 +16,35 @@
     "damage.type.true": "True",
 
     "effect.type.none": "{0}",
-    "effect.type.modifier": "{0:0} {1}",
-    "effect.type.shield": "{0:0}HP {1}",
+    "effect.type.modifier": "{0:F0} {1}",
+    "effect.type.shield": "{0:F0}HP {1}",
     "effect.type.shield.addon": "Shield",
     "effect.type.shield.addon.type": "{0}",
-    "effect.type.shield.addon.healing": "(+{0:0}HP/Turn)",
+    "effect.type.shield.addon.healing": "(+{0:F0}HP/Turn)",
     "effect.type.barrier": "{0} Barriers",
     "effect.type.drain": "{0} {1}/Turn",
-    "effect.type.damageOverTime": "{0} HP/Turn",
+    "effect.type.damageOverTime": "{0:F0} HP/Turn",
+    "effect.type.damageTypeBonus": "{0} {1} Bonus",
+    "effect.type.damageTypeRES": "{0} {1} RES",
+    "effect.type.damageSourceBonus": "{0} {1} Bonus",
+    "effect.type.damageSourceRES": "{0} {1} RES",
+    "effect.type.damageBonus": "{0} damage dealt",
+    "effect.type.damageRES": "{0} damage RES",
 
+    "character.generic.skip": "{0} skips their turn and receives {1} mana!",
     "character.generic.miss": "{0} missed {1}!",
     "character.generic.dodge": "{1} dodged the attack!",
-    "character.generic.damage": "{0} took {1} damage!",
+    "character.generic.damage": "{1} took {2:0} damage!",
+    "character.generic.stun": "{0} is stunned and cannot act!",
+    "character.generic.applyEffect": "{1} is afflicted with {2}!",
+    "character.generic.effectRES": "{1} resisted the effect!",
+    "character.generic.dot": "{0} also takes {2:0} damage from DoT!",
 
     "character.snake.ability.throwGrenade.name": "Throw grenade",
     "character.snake.ability.throwGrenade.text.start": "{0} throws a grenade at {1}!",
-    "character.snake.ability.throwGrenade.text.end": "The grenade explodes right next to {1}'s face, dealing {2} damage!"
+    "character.snake.ability.throwGrenade.text.damage1": "The grenade explodes right next to {1}'s face, dealing {2:0} damage!",
+
+    "character.rexulti.ability.pathetic.name": "Pathetic",
+    "character.rexulti.ability.pathetic.text.start": "{0} smacks {1} over the head with their sword, without bothering to unsheathe it!",
+    "character.rexulti.ability.pathetic.text.end": "{1} also starts bleeding for {3}!"
 }

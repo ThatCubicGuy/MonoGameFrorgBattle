@@ -29,7 +29,7 @@ namespace FrogBattle.Classes
         {
             get
             {
-                var total = _baseAmount; // Op.Apply(_baseAmount, Target.Hp); if we do decide to use op
+                var total = _baseAmount; // Op.Apply(_baseAmount, Target.Hp); if we decide to use Op
                 // Outgoing bonuses
                 if (Source != null)
                 {
@@ -45,6 +45,7 @@ namespace FrogBattle.Classes
         }
         public Character Source { get; }
         public Character Target { get; }
+        public double GetSnapshot() => Amount;
         public Healing Clone()
         {
             return MemberwiseClone() as Healing;
