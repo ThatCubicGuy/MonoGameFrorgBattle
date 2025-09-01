@@ -40,6 +40,17 @@ namespace FrogBattle.Classes
         .ToFrozenSet();
         public static bool IsHigherBetter(Stats stat) => !HigherIsWorse.Contains(stat);
         /// <summary>
+        /// These are keys for effects whose value is to be changed by external factors during gameplay,
+        /// and as such are banned from things like passive effects.
+        /// </summary>
+        public static readonly FrozenSet<object> VolatileEffectsKeys = new HashSet<object>()
+        {
+            typeof(Shield),
+            typeof(Barrier),
+            typeof(Overheal)
+        }
+        .ToFrozenSet();
+        /// <summary>
         /// This is merely a funny little joke that i probably won't use. But who knows !!!
         /// </summary>
         public static readonly FrozenDictionary<Scalars, double> GenericScalars =
@@ -56,8 +67,8 @@ namespace FrogBattle.Classes
                 { Scalars.Outrageous, 15.00 },
                 { Scalars.Bonkers, 20.00 },
                 { Scalars.Baffling, 30.00 },
-                { Scalars.Obscene, 40.00 },
-                { Scalars.Crikey, 50.00 },
+                { Scalars.Obscene, 50.00 },
+                { Scalars.Crikey, 69.00 },
                 { Scalars.Cringe, 100.00 }
             }
             .ToFrozenDictionary();

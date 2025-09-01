@@ -12,6 +12,7 @@ namespace FrogBattle.Characters
     {
         public Snake(string name, BattleManager battle, bool team) : base(name, battle, team)
         {
+            Pronouns = new("he", "him", "his", "his", "himself", true);
         }
 
         public override Ability SelectAbility(Character target, int selector)
@@ -23,9 +24,21 @@ namespace FrogBattle.Characters
                 _ => throw new ArgumentOutOfRangeException($"Invalid ability number: {selector}")
             };
         }
-
+        #region Abilities
         public class ThrowGrenade : BlastAttack
         {
+            public static AbilityInfo AbilityProps => new AbilityInfo() with
+            {
+                
+            };
+            public static AttackInfo AttackProps => new AttackInfo() with
+            {
+                Ratio = 1.15,
+                Scalar = Stats.Atk,
+                HitRate = 0.80,
+                IndependentHitRate = false,
+                DamageInfo = DamageProps
+            };
             public static DamageInfo DamageProps => new DamageInfo() with
             {
                 Type = DamageTypes.Blast,
@@ -34,11 +47,12 @@ namespace FrogBattle.Characters
                 TypeResPen = 0,
                 CanCrit = true
             };
-            public ThrowGrenade(Character source, Character target) : base(source, target, new(typeof(ThrowGrenade).Name, false),
-                falloff: 0.5,
-                new(Ratio: 1.15, Scalar: Stats.Atk, HitRate: 0.80, IndependentHitRate: false, DamageInfo: DamageProps, Split: [])) {
+            public ThrowGrenade(Character source, Character target) : base(source, target, AbilityProps, AttackProps, null,
+                falloff: 0.5)
+            {
                 WithGenericManaCost(13);
             }
         }
+        #endregion
     }
 }

@@ -20,7 +20,7 @@ namespace FrogBattle.Classes
             Props = properties;
         }
         public Character Parent { get; }
-        public Character Target { get; protected set; }
+        public Character Target { get; }
         public AbilityInfo Props { get; }
         /// <summary>
         /// Pool changes that execute after the ability is checked, but before it is launched.
@@ -61,17 +61,29 @@ namespace FrogBattle.Classes
         /// <returns>True if used successfully, false if missed.</returns>
         private protected abstract bool Use();
         /// <summary>
+        /// Display the function. Idfk how you animate shit. But you do or something. So have fun.
+        /// </summary>
+        /// <param name="args"></param>
+        public virtual void Display(object[] args)
+        {
+
+        }
+        /// <summary>
         /// Creates untranslated flavour text keys.
         /// </summary>
-        /// <returns>An enumerator that iterates through every available key for this ability.</returns>
+        /// <returns>A dictionary with every available line for this ability.</returns>
         public Dictionary<TextTypes, string> FlavourText()
         {
+            // i'm sorry but honest to god replacing four lines of code with the most hideous monstrosity of a single line return known to man was way too funny to pass up
+            /*
             var result = new Dictionary<TextTypes, string>();
             string baseName = string.Join('.', Parent._internalName, typeof(Ability).Name.camelCase(), GetType().Name.camelCase(), "text");
             foreach (var item in Enum.GetValues(typeof(TextTypes)))
                 if (Localization.strings.ContainsKey(string.Join('.', baseName, item.ToString().camelCase())))
-                     result.Add((TextTypes)item, string.Join('.', baseName, item.ToString().camelCase()));
+                    result.Add((TextTypes)item, string.Join('.', baseName, item.ToString().camelCase()));
             return result;
+            */
+            return Enum.GetValues(typeof(TextTypes)).Cast<object>().ToList().FindAll(x => Localization.strings.ContainsKey(string.Join('.', string.Join('.', Parent._internalName, typeof(Ability).Name.camelCase(), GetType().Name.camelCase(), "text"), x.ToString().camelCase()))).Select<object, KeyValuePair<TextTypes, string>>(x => new((TextTypes)x, string.Join('.', string.Join('.', Parent._internalName, typeof(Ability).Name.camelCase(), GetType().Name.camelCase(), "text"), x.ToString().camelCase()))).ToDictionary();
         }
         /// <summary>
         /// Shorthand AddText method so i don't write five vigintillion characters each time.
@@ -138,15 +150,15 @@ namespace FrogBattle.Classes
                     if (item[index] == null)
                     {
                         // Ability miss text
-                        if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, [Parent.Name, Target.Name]);
-                        else AddText(GenericMiss, [Parent.Name, Target.Name]);
+                        if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, [Parent, Target]);
+                        else AddText(GenericMiss, [Parent, Target]);
                     }
                     else
                     {
                         finalDamage += item[index].Amount;
                         // Index is 0 based while TextType Damage(1 : 16) index is 1 based, so we increment by 1
-                        if (text.TryGetValue((TextTypes)(index + 1)/*here*/, out var damageKey)) AddText(damageKey, [Parent.Name, Target.Name, item[index].Amount]);
-                        else AddText(GenericDamage, [Parent.Name, Target.Name, item[index].Amount]);
+                        if (text.TryGetValue((TextTypes)(index + 1)/*here*/, out var damageKey)) AddText(damageKey, [Parent, Target, item[index].Amount]);
+                        else AddText(GenericDamage, [Parent, Target, item[index].Amount]);
                         // Apply damage and effects to targets
                         Array.ForEach(Targets, x => { x.TakeDamage(item[index]); ApplyEffect(x); });
                     }
@@ -261,8 +273,44 @@ namespace FrogBattle.Classes
             public override object GetKey() => Pool;
         }
     }
-    // a bit botched to just remove abstract modifier on SingleTargetAttack, but i'll do this for now and refactor later
-    internal class SingleTargetAttack(Character source, Character target, AbilityInfo properties, AttackInfo attackInfo, EffectInfo effectInfo = null) : Ability(source, target, properties), IAttack, IAppliesEffect
+    // oh god
+    internal class AttackHelper
+    {
+        public AttackHelper(IAttack src) : this(src.Parent, src.Target, src.AttackInfo, src is IAppliesEffect ef ? ef.EffectInfo : null) { }
+        public AttackHelper(Character parent, Character target, AttackInfo attackInfo, EffectInfo effectInfo = null)
+        {
+            Parent = parent;
+            Target = target;
+            AttackInfo = attackInfo;
+            EffectInfo = effectInfo;
+        }
+        public Character Parent { get; set; }
+        public Character Target { get; set; }
+        public AttackInfo AttackInfo { get; set; }
+        public EffectInfo EffectInfo { get; set; }
+
+        /// <summary>
+        /// Creates a series of damages for the given target.
+        /// </summary>
+        /// <returns></returns>
+        public IEnumerator<Damage> Init()
+        {
+            if (AttackInfo.Split == null || AttackInfo.Split.Length == 0)
+            {
+                var damage = new Damage(Parent, Target, AttackInfo.Ratio, AttackInfo.DamageInfo);
+                yield return damage;
+                damage.Take(1);
+                yield break;
+            }
+            long sum = AttackInfo.Split.Sum(x => x);
+            foreach (var i in AttackInfo.Split)
+            {
+                yield return new(Parent, Target, AttackInfo.Ratio * i / sum, AttackInfo.DamageInfo);
+            }
+            yield break;
+        }
+    }
+    internal abstract class SingleTargetAttack(Character source, Character target, AbilityInfo properties, AttackInfo attackInfo, EffectInfo effectInfo) : Ability(source, target, properties), IAttack, IAppliesEffect
     {
         public AttackInfo AttackInfo { get; } = attackInfo;
         public EffectInfo EffectInfo { get; } = effectInfo;
@@ -272,25 +320,25 @@ namespace FrogBattle.Classes
             // Get the lists for flavour text
             var text = FlavourText();
             // Ability launch text
-            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, [Parent.Name, Target.Name]);
+            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, [Parent, Target]);
             var finalDamage = SimpleAttack(Target);
             if (finalDamage != null)
             {
                 // Ability end text
-                if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, [Parent.Name, Target.Name, finalDamage, EffectInfo?.AppliedEffect.CreateArgs()]);
+                if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, [Parent, Target, finalDamage, EffectInfo?.AppliedEffect]);
                 return true;
             }
             else
             {
                 // Ability miss text
-                if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, [Parent.Name, Target.Name]);
-                else AddText(GenericMiss, [Parent.Name, Target.Name]);
+                if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, [Parent, Target]);
+                else AddText(GenericMiss, [Parent, Target]);
                 return false;
             }
         }
     }
 
-    internal abstract class BlastAttack(Character source, Character mainTarget, AbilityInfo properties, double falloff, AttackInfo attackInfo, EffectInfo effectInfo = null) : Ability(source, mainTarget, properties), IAttack, IAppliesEffect
+    internal abstract class BlastAttack(Character source, Character mainTarget, AbilityInfo properties, AttackInfo attackInfo, EffectInfo effectInfo, double falloff) : Ability(source, mainTarget, properties), IAttack, IAppliesEffect
     {
         public double Falloff { get; } = falloff;
         public AttackInfo AttackInfo { get; } = attackInfo;
@@ -301,30 +349,37 @@ namespace FrogBattle.Classes
             // Get the lists for flavour text
             var text = FlavourText();
             // Ability launch text
-            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, [Parent.Name, Target.Name]);
+            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, [Parent, Target]);
             var finalDamage = SimpleAttack(Target);
             if (finalDamage != null)
             {
-                // Create a new attack for the side targets with falloff
-                var sideAttack = new SingleTargetAttack(Parent, Target, Props, AttackInfo with { Ratio = AttackInfo.Ratio - Falloff });
+                // Create new attacks for the side targets with falloff
+                var leftAttack = new AttackHelper(this) { Target = Target.LeftTeammate }.Init();
+                var rightAttack = new AttackHelper(this) { Target = Target.RightTeammate }.Init();
                 // Calculate damage for side targets
-                finalDamage += sideAttack.SimpleAttack(Target.LeftTeammate) ?? 0;
-                finalDamage += sideAttack.SimpleAttack(Target.RightTeammate) ?? 0;
+                while (leftAttack.MoveNext() && leftAttack.Current.Target != null)
+                {
+                    leftAttack.Current.Take(AttackInfo.Ratio - Falloff);
+                }
+                while (rightAttack.MoveNext() && leftAttack.Current.Target != null)
+                {
+                    leftAttack.Current.Take(AttackInfo.Ratio - Falloff);
+                }
                 // Ability end text
-                if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, [Parent.Name, Target.Name, finalDamage,EffectInfo?.AppliedEffect.CreateArgs()]);
+                if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, [Parent, Target, finalDamage, EffectInfo?.AppliedEffect]);
                 return true;
             }
             else
             {
                 // Ability miss text
-                if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, [Parent.Name, Target.Name]);
-                else AddText(GenericMiss, [Parent.Name, Target.Name]);
+                if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, [Parent, Target]);
+                else AddText(GenericMiss, [Parent, Target]);
                 return false;
             }
         }
     }
 
-    internal abstract class BounceAttack(Character source, Character mainTarget, AbilityInfo properties, uint count, AttackInfo attackInfo, EffectInfo effectInfo = null) : Ability(source, mainTarget, properties), IAttack, IAppliesEffect
+    internal abstract class BounceAttack(Character source, Character mainTarget, AbilityInfo properties, AttackInfo attackInfo, EffectInfo effectInfo, uint count) : Ability(source, mainTarget, properties), IAttack, IAppliesEffect
     {
         public uint Count { get; } = count;
         public AttackInfo AttackInfo { get; } = attackInfo;
@@ -336,7 +391,7 @@ namespace FrogBattle.Classes
             // Get the lists for flavour text
             var text = FlavourText();
             // Ability launch text
-            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, [Parent.Name, Target.Name]);
+            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, [Parent, Target]);
 
             double finalDamage = 0;
             for (int index = 0; index < Count; ++index)
@@ -348,20 +403,20 @@ namespace FrogBattle.Classes
             if (finalDamage != 0)
             {
                 // Ability end text
-                if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, [Parent.Name, Target.Name, finalDamage, EffectInfo?.AppliedEffect.CreateArgs()]);
+                if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, [Parent, Target, finalDamage, EffectInfo?.AppliedEffect]);
                 return true;
             }
             else
             {
                 // Ability miss text
-                if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, [Parent.Name, Target.Name]);
-                else AddText(GenericMiss, [Parent.Name, Target.Name]);
+                if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, [Parent, Target]);
+                else AddText(GenericMiss, [Parent, Target]);
                 return false;
             }
         }
     }
 
-    internal abstract class AoEAttack(Character source, AbilityInfo properties, Character mainTarget, AttackInfo attackInfo, EffectInfo effectInfo = null) : Ability(source, mainTarget, properties), IAttack, IAppliesEffect
+    internal abstract class AoEAttack(Character source, AbilityInfo properties, Character mainTarget, AttackInfo attackInfo, EffectInfo effectInfo) : Ability(source, mainTarget, properties), IAttack, IAppliesEffect
     {
         public List<Character> Targets => Target.Team;
         public AttackInfo AttackInfo { get; } = attackInfo;
@@ -372,7 +427,7 @@ namespace FrogBattle.Classes
             // Get the lists for flavour text
             var text = FlavourText();
             // Ability launch text
-            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, [Parent.Name, Target.Name]);
+            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, [Parent, Target]);
             double finalDamage = 0;
             foreach (var character in Targets)
             {
@@ -382,14 +437,14 @@ namespace FrogBattle.Classes
             {
 
                 // Ability end text
-                if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, [Parent.Name, Target.Name, finalDamage, EffectInfo?.AppliedEffect.CreateArgs()]);
+                if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, [Parent, Target, finalDamage, EffectInfo?.AppliedEffect]);
                 return true;
             }
             else
             {
                 // Ability miss text
-                if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, [Parent.Name, Target.Name]);
-                else AddText(GenericMiss, [Parent.Name, Target.Name]);
+                if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, [Parent, Target]);
+                else AddText(GenericMiss, [Parent, Target]);
                 return false;
             }
         }
@@ -430,7 +485,7 @@ namespace FrogBattle.Classes
 
     internal sealed class SkipTurn : Ability
     {
-        public SkipTurn(Character source) : base(source, source, new("Skip turn", false))
+        public SkipTurn(Character source) : base(source, source, new(false))
         {
             WithReward(new(source, source, 5, Pools.Mana, Operators.Additive));
         }

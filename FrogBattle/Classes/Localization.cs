@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace FrogBattle
+namespace FrogBattle.Classes
 {
     internal static class Localization
     {
@@ -21,7 +21,7 @@ namespace FrogBattle
                 return key;
             //Console.WriteLine(template);
             //foreach (var item in args) Console.WriteLine(item);
-            return string.Format(template, args);
+            return string.Format(GameFormatProvider.Instance, template, args);
         }
         public static string Translate(KeyValuePair<string, object[]> kvp, params object[] args)
         {

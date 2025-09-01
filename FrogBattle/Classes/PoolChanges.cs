@@ -20,7 +20,7 @@ namespace FrogBattle.Classes
         public Reward(Character source, Character target, double amount, Pools pool, Operators op)
         {
             // You can use the cost / reward system for gaining and consuming HP.
-            // Do be wary not to use it for actual healing.
+            // Prefer not to use it for actual healing and damage.
             Source = source;
             Target = target;
             _baseAmount = amount;

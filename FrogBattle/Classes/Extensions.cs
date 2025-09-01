@@ -105,7 +105,7 @@ namespace FrogBattle.Classes
             double totalValue = 0;
             foreach (var effect in list)
             {
-                var item = effect.GetModifiers()[stat];
+                var item = effect.GetModifier(stat);
                 totalValue += item.Amount;
             }
             return totalValue;
@@ -133,21 +133,19 @@ namespace FrogBattle.Classes
         /// <exception cref="InvalidDataException">Ability damage split should not be longer than 16.</exception>
         public static List<Damage> AttackDamage(this IAttack ability, Character target)
         {
-            if (ability.AttackInfo.Split.Length > 16) throw new InvalidDataException("Cannot split damage into more than 16 parts!");
+            if (ability.AttackInfo.Split?.Length > 16) throw new InvalidDataException("Cannot split damage into more than 16 parts!");
             var result = new List<Damage>();
             if (!ability.AttackInfo.IndependentHitRate && !ability.IsHit(target))
             {
-                Console.WriteLine("BAD");
                 return null;
             }
             if (ability.AttackInfo.Split == null || ability.AttackInfo.Split.Length == 0)
             {
-                Console.WriteLine("GOOD i think");
                 // If it's not IHR then hit or not doesn't matter, we calculated that already.
                 // Though here it technically shouldn't matter at all. What's the point of
                 // having IndependentHitRate when your split is 0...
                 result.Add(!ability.AttackInfo.IndependentHitRate || ability.IsHit(target) ? new(ability.Parent, target,
-                ability.AttackInfo.Ratio * ability.Parent.GetStat(ability.AttackInfo.Scalar), ability.AttackInfo.DamageInfo) : null);
+                ability.AttackInfo.Ratio * ability.Parent.GetStatVersus(ability.AttackInfo.Scalar, ability.Target), ability.AttackInfo.DamageInfo) : null);
             }
             else
             {
@@ -155,7 +153,7 @@ namespace FrogBattle.Classes
                 foreach (var i in ability.AttackInfo.Split)
                 {
                     result.Add(!ability.AttackInfo.IndependentHitRate || ability.IsHit(target) ? new(ability.Parent, target,
-                    ability.AttackInfo.Ratio * ability.Parent.GetStat(ability.AttackInfo.Scalar) * i / sum, ability.AttackInfo.DamageInfo) : null);
+                    ability.AttackInfo.Ratio * i / sum, ability.AttackInfo.DamageInfo) : null);
                 }
             }
             return result.All(x => x == null) ? null : result;
@@ -172,7 +170,7 @@ namespace FrogBattle.Classes
                 $"{src.GetStat(Stats.Dex):0} DEX,",
                 $"{src.Mana:0} MP,",
                 $"{src.Energy:0}/{src.GetStat(Stats.MaxEnergy)}] ") + 
-                string.Join(' ', src.GetEffects().Select((x) => x.Display()));
+                string.Join(' ', src.GetActives().Select((x) => string.Format(GameFormatProvider.Instance, "{0:xs}", x)));
         }
         public static Ability Console_SelectAbility(this Character src)
         {

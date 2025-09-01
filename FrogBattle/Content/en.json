@@ -15,6 +15,12 @@
     "damage.type.magic": "Magic",
     "damage.type.true": "True",
 
+    "effect.display.text": "{0:n}: {0:e}{1}",
+    "effect.display.text.turnAddon": " for {0:t} turns",
+    "effect.display.nameless": "{0:e}{1}",
+    "effect.display.nameless.turnAddon": " for {0:t} turns",
+    "effect.display.simple": "{0:b}[{0:n}{1}]",
+    "effect.display.simple.turnAddon": " ({0:t})",
     "effect.type.none": "{0}",
     "effect.type.modifier": "{0:F0} {1}",
     "effect.type.shield": "{0:F0}HP {1}",
@@ -38,13 +44,16 @@
     "character.generic.stun": "{0} is stunned and cannot act!",
     "character.generic.applyEffect": "{1} is afflicted with {2}!",
     "character.generic.effectRES": "{1} resisted the effect!",
-    "character.generic.dot": "{0} also takes {2:0} damage from DoT!",
+    "character.generic.dot": "{0} also takes {2:F0} damage from DoT!",
 
     "character.snake.ability.throwGrenade.name": "Throw grenade",
-    "character.snake.ability.throwGrenade.text.start": "{0} throws a grenade at {1}!",
-    "character.snake.ability.throwGrenade.text.damage1": "The grenade explodes right next to {1}'s face, dealing {2:0} damage!",
+    "character.snake.ability.throwGrenade.text.start": "{0} throw{0:S} a grenade at {1}!",
+    "character.snake.ability.throwGrenade.text.damage1": "The grenade explodes right next to {1}'s face, dealing {2:F0} damage!",
 
     "character.rexulti.ability.pathetic.name": "Pathetic",
-    "character.rexulti.ability.pathetic.text.start": "{0} smacks {1} over the head with their sword, without bothering to unsheathe it!",
-    "character.rexulti.ability.pathetic.text.end": "{1} also starts bleeding for {3}!"
+    "character.rexulti.ability.pathetic.text.start": "{0} smack{0:S} {1} over {1:P2} head with {0:P2} sword, without bothering to unsheathe it!",
+    "character.rexulti.ability.pathetic.text.end": "{1} also start{1:S} bleeding for {3:xn}!",
+
+    "character.rexulti.ability.shadowFlare.name": "Shadow Flare",
+    "character.rexulti.ability.shadowFlare.text.start": "{0} send{0:S} out a burst of energy that surrounds {1}!"
 }

@@ -6,6 +6,18 @@ using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
+    public record Pronouns
+    (
+        string Subjective,
+        string Objective,
+        string Attributive,
+        string Absolute,
+        string Reflexive,
+        bool Extra_S
+    )
+    {
+        public string[] PronArray => [Subjective, Objective, Attributive, Absolute, Reflexive];
+    }
     public record DamageInfo
     (
         DamageTypes Type = DamageTypes.None,
@@ -16,22 +28,28 @@ namespace FrogBattle.Classes
     );
     public record AbilityInfo
     (
-        string Name,
-        bool RepeatsTurn
+        bool RepeatsTurn = false
     );
     internal record AttackInfo
     (
-        double Ratio,
-        Stats Scalar,
-        DamageInfo DamageInfo,
+        double Ratio = 0,
+        Stats Scalar = Stats.None,
+        DamageInfo DamageInfo = null,
         double? HitRate = null,
         bool IndependentHitRate = false,
         uint[] Split = null
     );
     internal record EffectInfo
     (
-        StatusEffect AppliedEffect,
+        StatusEffect AppliedEffect = null,
         double Chance = 1,
         ChanceTypes ChanceType = ChanceTypes.Fixed
     );
+    internal record InstaAction(Ability Action) : ITakesAction
+    {
+        public void TakeAction()
+        {
+            Action.TryUse();
+        }
+    }
 }

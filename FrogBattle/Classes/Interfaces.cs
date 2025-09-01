@@ -49,4 +49,10 @@ namespace FrogBattle.Classes
         public Pools Pool { get; }
         public Operators Op { get; }
     }
+
+    internal interface IAttributeModifier
+    {
+        Character Source { get; }
+        Character Target { get; }
+    }
 }
