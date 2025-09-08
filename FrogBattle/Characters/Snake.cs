@@ -10,7 +10,10 @@ namespace FrogBattle.Characters
 {
     internal class Snake : Character
     {
-        public Snake(string name, BattleManager battle, bool team) : base(name, battle, team)
+        public Snake(string name, BattleManager battle, bool team) : base(name, battle, team, new()
+        {
+            { Stats.EffectRES, 0.3 }
+        })
         {
             Pronouns = new("he", "him", "his", "his", "himself", true);
         }
@@ -21,16 +24,13 @@ namespace FrogBattle.Characters
             {
                 0 => new SkipTurn(this),
                 1 => new ThrowGrenade(this, target),
-                _ => throw new ArgumentOutOfRangeException($"Invalid ability number: {selector}")
+                _ => throw new ArgumentOutOfRangeException(nameof(selector), $"Invalid ability number: {selector}")
             };
         }
         #region Abilities
         public class ThrowGrenade : BlastAttack
         {
-            public static AbilityInfo AbilityProps => new AbilityInfo() with
-            {
-                
-            };
+            public static AbilityInfo AbilityProps => new();
             public static AttackInfo AttackProps => new AttackInfo() with
             {
                 Ratio = 1.15,
@@ -47,9 +47,9 @@ namespace FrogBattle.Characters
                 TypeResPen = 0,
                 CanCrit = true
             };
-            public ThrowGrenade(Character source, Character target) : base(source, target, AbilityProps, AttackProps, null,
-                falloff: 0.5)
+            public ThrowGrenade(Character source, Character target) : base(source, target, AbilityProps, AttackProps, null, 0.5)
             {
+                Falloff = 0.5;
                 WithGenericManaCost(13);
             }
         }

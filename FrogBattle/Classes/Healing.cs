@@ -16,11 +16,12 @@ namespace FrogBattle.Classes
         /// </summary>
         /// <param name="source">Character which sent this heal.</param>
         /// <param name="amount">The amount of healing, pre-calculations. Usually ratio * scalar, or just a flat value.</param>
-        public Healing(Character source, Character target, double amount)
+        public Healing(Character source, Character target, HealingInfo info)
         {
             Source = source;
             Target = target;
-            _baseAmount = amount;
+            Info = info;
+            _baseAmount = info.Amount;
         }
         /// <summary>
         /// Automatically calculates outgoing healing from the source fighter and incoming healing on the target.
@@ -33,19 +34,27 @@ namespace FrogBattle.Classes
                 // Outgoing bonuses
                 if (Source != null)
                 {
-                    total *= Source.GetStat(Stats.OutgoingHealing);
+                    total *= Source.GetStatVersus(Stats.OutgoingHealing, Target);
                 }
                 // Incoming bonuses
                 if (Target != null)
                 {
-                    total *= Target.GetStat(Stats.IncomingHealing);
+                    total *= Target.GetStatVersus(Stats.IncomingHealing, Target);
                 }
                 return total;
             }
         }
         public Character Source { get; }
         public Character Target { get; }
-        public double GetSnapshot() => Amount;
+        public HealingInfo Info { get; }
+        public double Take(double ratio = 1)
+        {
+            // ?
+            var snapshot = GetSnapshot(ratio);
+            Target.TakeHealing(this, ratio);
+            return snapshot;
+        }
+        public double GetSnapshot(double ratio) => Amount * ratio;
         public Healing Clone()
         {
             return MemberwiseClone() as Healing;

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
-    internal abstract class Character : IHasTurn, IFormattable
+    internal abstract class Character : IHasTurn
     {
         public readonly Dictionary<Stats, double> Base;
         protected double CurrentHp;
@@ -17,16 +17,45 @@ namespace FrogBattle.Classes
         public readonly string _internalName;
         
         #region Events
-        public event EventHandler<Damage> DamageTaken;  // FINALLY I UNDERSTAND HOW THIS PMO SHIT WORKS
-        public event EventHandler<Damage> DamageDealt;
+        public event EventHandler<Damage.DamageSnapshot> DamageTaken;  // FINALLY I UNDERSTAND HOW THIS PMO SHIT WORKS
+        public event EventHandler<Damage.DamageSnapshot> DamageDealt;
         public event EventHandler<Healing> HealingReceived;
         public event EventHandler<ITakesAction> TurnStarted;
         public event EventHandler<StatusEffect> EffectGained;
         public event EventHandler<StatusEffect> EffectRemoved;
+        public event EventHandler<StatusEffect> EffectApplied;
         public event EventHandler<IPoolChange> PoolChanged;
-        // Generic Events
         public event EventHandler<double> HpChanged;
-        public event EventHandler<InstaAction> QueueInstaAction;
+        public event EventHandler<InstaAction> QueueInstantAction;
+        public event EventHandler<Ability> AbilityLaunched;
+        // Generic Event Builders
+        /// <summary>
+        /// Create a DoT trigger effect for the ability <typeparamref name="TAbility"/>. Add this to <see cref="AbilityLaunched"/>.
+        /// </summary>
+        /// <typeparam name="TAbility">The ability which triggers DoT calculations.</typeparam>
+        /// <param name="ratio">The ratio at which the DoT damage is taken.</param>
+        /// <returns>An <see cref="EventHandler"/> with an <see cref="Ability"/> argument.</returns>
+        protected static EventHandler<Ability> DoTTrigger<TAbility>(double ratio) where TAbility : Ability
+        {
+            return delegate (object sender, Ability e)
+            {
+                if (e is TAbility)
+                {
+                    var damages = e.Target.DoTCalculations();
+                    foreach (var damage in damages)
+                    {
+                        e.Target.TakeDamage(damage, ratio);
+                    }
+                }
+            };
+        }
+        protected static EventHandler<Ability> AdditionalDamage<TAbility>(Damage damage)
+        {
+            return delegate
+            {
+                damage.Take();
+            };
+        }
         #endregion
         public Character(string name, BattleManager battle, bool IS_TEAM_1, Dictionary<Stats, double> overrides = null)
         {
@@ -153,7 +182,7 @@ namespace FrogBattle.Classes
                 double diff = Shield - value;
                 if (diff > 0)
                 {
-                    var shields = GetActives().SelectMany((x) => x.GetSubeffects<Shield>().Values);
+                    var shields = GetActives().SelectMany((x) => x.GetSubeffectsOfType<Shield>().Values);
                     foreach (var item in shields)
                     {
                         if (diff >= item.Amount)
@@ -186,7 +215,7 @@ namespace FrogBattle.Classes
                 if ((int)value - Barrier <= 0)
                 {
                     uint diff = Barrier - value;
-                    foreach (var item in GetActives().SelectMany((x) => x.GetSubeffects<Barrier>().Values))
+                    foreach (var item in GetActives().SelectMany((x) => x.GetSubeffectsOfType<Barrier>().Values))
                     {
                         if (diff >= item.Count)
                         {
@@ -215,7 +244,7 @@ namespace FrogBattle.Classes
         public bool InTurn { get; private set; }
 
         #endregion
-        public bool TakeAction(Ability action)
+        public bool TakeInstaAction(Ability action)
         {
             if (Stun > 0) return true;
             return action.TryUse();
@@ -226,15 +255,32 @@ namespace FrogBattle.Classes
             StartOfTurnChecks();
             if (Stun > 0)
             {
-                ParentBattle.BattleText.AppendLine(Localization.Translate("character.generic.stun", Name, Stun));
+                ParentBattle.BattleText.AppendLine(Localization.Translate(Generic.Stun, Name, Stun));
             }
             else
             {
                 ApplyChange(new Reward(null, this, 5, Pools.Mana, Operators.Additive));
-                while (!this.Console_SelectAbility().TryUse());
+                while (true)
+                {
+                    var selection = this.Console_SelectAbility();
+                    if (selection.TryUse())
+                    {
+                        AbilityLaunched?.Invoke(this, selection);
+                        break;
+                    }
+                    else
+                    {
+                        ParentBattle.UpdateText();
+                    }
+                }
             }
             EndOfTurnChecks();
             InTurn = false;
+        }
+        public virtual void Die()
+        {
+            AddBattleText(_internalName + ".death", Hp);
+            ParentBattle.Kill(this);
         }
         public void AddBattleText(string key, params object[] args)
         {
@@ -252,22 +298,24 @@ namespace FrogBattle.Classes
             if (stat == Stats.None) throw new ArgumentOutOfRangeException(nameof(stat), "Cannot resolve stat Stats.None.");
             return Base[stat] + GetActivesValue(stat);
         }
-        public double GetStatVersus(Stats stat, params Character[] targets)
+        /// <summary>
+        /// Calculates the final value for a given stat through GetStat() and adds any of the passives that take effect against the given target.
+        /// Trying to calculate <see cref="Stats.None"/> throws an exception.
+        /// </summary>
+        /// <param name="stat">Stat for which to calculate the final value.</param>
+        /// <param name="target">Target for which to calculate the passives.</param>
+        /// <returns>A double which represents the stat post calculations.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public double GetStatVersus(Stats stat, Character target)
         {
-            return GetStat(stat) + GetPassivesValue(stat, targets);
+            //Console.WriteLine($"{Name} has {GetPassivesValue(stat, target)} passives value for stat {stat} against {target.Name}");
+            return GetStat(stat) + GetPassivesValue(stat, target);
         }
         private void StartOfTurnChecks()
         {
-            var dotList = DoTCalculations();
-            double totalDamage = 0;
-            foreach (var item in dotList)
-            {
-                totalDamage += item.Amount;
-                TakeDamage(item);
-            }
-            if (totalDamage > 0) AddBattleText("character.generic.dot", Name, EnemyTeam.Single().Name, totalDamage);
-            MarkedForDeath.AddRange(StatusEffects.FindAll((x) => !x.Is(StatusEffect.Flags.StartTick)));
-            foreach (var item in StatusEffects.FindAll((x) => x.Is(StatusEffect.Flags.StartTick)))
+            TakeDoTDamage();
+            MarkedForDeath.AddRange(StatusEffects.FindAll(x => !x.Is(StatusEffect.Flags.StartTick)));
+            foreach (var item in StatusEffects.FindAll(x => x.Is(StatusEffect.Flags.StartTick)))
             {
                 if (item.Expire()) StatusEffects.Remove(item);
             }
@@ -282,23 +330,36 @@ namespace FrogBattle.Classes
         }
         public List<Damage> DoTCalculations()
         {
-            var damages = new List<Damage>();
-            foreach (var item in StatusEffects.Select(x => x.SingleEffect<DamageOverTime>()))
+            return StatusEffects.Select(x => x.SingleEffect<DamageOverTime>()?.GetDamage()).Where(x => x != null).ToList();
+        }
+        public List<Healing> RegenCalculations()
+        {
+            return StatusEffects.Select(x => x.SingleEffect<HealingOverTime>()?.GetHealing()).Where(x => x != null).ToList();
+        }
+        public void TakeDoTDamage(double ratio = 1)
+        {
+            var dotList = DoTCalculations();
+            double totalDamage = 0;
+            foreach (var item in dotList)
             {
-                damages.Add(item.GetDamage());
+                totalDamage += item.Amount;
+                TakeDamage(item, ratio);
             }
-            return damages;
+            if (totalDamage > 0) AddBattleText("character.generic.dot", this, totalDamage);
         }
         public void AddEffect(IAttributeModifier effect)
         {
             if (effect is StatusEffect eff)
             {
                 if (eff == null) return;
-                EffectGained?.Invoke(this, eff);
+                EffectGained?.Invoke(eff.Source, eff);
+                eff.Source.EffectApplied?.Invoke(this, eff);
                 var sameEff = GetActives().Find(x => x == eff);
                 if (sameEff != null)
                 {
                     eff.Stacks += sameEff.Stacks;
+                    if (eff.SingleEffect<Shield>() != null) eff.SingleEffect<Shield>().Amount += sameEff.SingleEffect<Shield>().Amount;
+                    if (eff.SingleEffect<Barrier>() != null) eff.SingleEffect<Barrier>().Count += sameEff.SingleEffect<Barrier>().Count;
                     StatusEffects[StatusEffects.IndexOf(sameEff)] = eff;
                 }
                 else StatusEffects.Add(eff);
@@ -333,18 +394,22 @@ namespace FrogBattle.Classes
         {
             return BattleManager.RNG < hitRate + GetStat(Stats.HitRateBonus) || hitRate == null;
         }
-        public void TakeDamage(Damage damage, double ratio = 1)
+        public double TakeDamage(Damage damage, double ratio = 1)
+        {
+            if (damage.Target != this) throw new ArgumentException($"Mismatch between Damage instance target {damage.Target} and TakeDamage method target {this}.", nameof(damage));
+            return TakeDamage(damage.GetSnapshot(ratio));
+        } // reaching obsolescence as i think more and more about just snapshotting damage instead
+        public double TakeDamage(Damage.DamageSnapshot damage)
         {
             // to do: implement final damage calculations for additional damage calculations
-            if (damage.Target != this) throw new ArgumentException($"Mismatch between Damage instance target {damage.Target} and TakeDamage method target {this}.", nameof(damage));
-            var damageAmount = damage.Amount * ratio;
-            if (damageAmount <= 0) return;
-            this.DamageTaken?.Invoke(damage.Source, damage);   // YES I FIGURED OUT EVENTS LETS GOO
+            var damageAmount = damage.Amount;
+            if (damageAmount <= 0) return 0;
+            DamageTaken?.Invoke(damage.Source, damage);   // YES I FIGURED OUT EVENTS LETS GOO
             damage.Source.DamageDealt?.Invoke(this, damage);
             if (Barrier > 0)
             {
                 Barrier -= 1;
-                return;
+                return 0;
             }
             if (Shield > 0)
             {
@@ -352,17 +417,16 @@ namespace FrogBattle.Classes
                 Shield = -damageAmount;
             }
             if (damageAmount > 0) Hp -= damageAmount;
-        } // reaching obsolescence as i think more and more about just snapshotting damage instead
-        public void TakeDamage(Damage.DamageSnapshot damage)
-        {
-            throw new NotImplementedException();
+            return damage.Amount;
         }
-        public void TakeHealing(Healing healing, double ratio = 1)
+        public double TakeHealing(Healing healing, double ratio = 1)
         {
             throw new NotImplementedException();
         }
 
         #region Effect Methods
+
+        // Actives
 
         /// <summary>
         /// Searches <see cref="StatusEffects"/> for all effects.
@@ -378,7 +442,7 @@ namespace FrogBattle.Classes
         /// <returns>A list of every <typeparamref name="TResult"/> effect from the fighter's currently applied StatusEffects.</returns>
         public List<TResult> GetActives<TResult>() where TResult : Subeffect
         {
-            return [.. StatusEffects.SelectMany((x) => x.GetSubeffects<TResult>().Values)];
+            return [.. StatusEffects.SelectMany((x) => x.GetSubeffectsOfType<TResult>().Values)];
         }
         /// <summary>
         /// Searches <see cref="StatusEffects"/> for all status effects that modify the <see cref="Stats"/> <paramref name="stat"/> in some way.
@@ -391,13 +455,17 @@ namespace FrogBattle.Classes
         }
         /// <summary>
         /// Calculates the full modification of a certain stat by every active <see cref="StatusEffect"/>.
+        /// This method applies stack counts.
         /// </summary>
         /// <param name="stat">The stat whose modifications to search for.</param>
         /// <returns>A double that represents the modification from the base value of the given stat.</returns>
         public double GetActivesValue(Stats stat)
         {
-            return GetActives(stat).Sum((x) => x.GetModifier(stat).Amount);
+            return GetActives(stat).Sum((x) => x.GetModifier(stat).Amount * x.Stacks);
         }
+
+        // Passives
+
         /// <summary>
         /// Searches <see cref="PassiveEffects"/> for all effects that modify the <see cref="Stats"/> <paramref name="stat"/> in some way.
         /// </summary>
@@ -413,7 +481,7 @@ namespace FrogBattle.Classes
         /// <returns>A list of every <typeparamref name="TResult"/> effect from the fighter's currently active PassiveEffects.</returns>
         public List<TResult> GetPassives<TResult>() where TResult : Subeffect
         {
-            return [.. PassiveEffects.SelectMany((x) => x.GetSubeffects<TResult>().Values)];
+            return [.. PassiveEffects.SelectMany((x) => x.GetSubeffectsOfType<TResult>().Values)];
         }
         /// <summary>
         /// Searches <see cref="PassiveEffects"/> for all status effects that modify the <see cref="Stats"/> <paramref name="stat"/> in some way.
@@ -424,9 +492,76 @@ namespace FrogBattle.Classes
         {
             return PassiveEffects.FindAll((x) => x.GetModifier(stat) != null);
         }
-        public double GetPassivesValue(Stats stat, params Character[] targets)
+        /// <summary>
+        /// Calculates the full modification of a certain stat by every active <see cref="PassiveEffect"/>.
+        /// This method applies stack counts.
+        /// </summary>
+        /// <param name="stat">The stat whose modifications to search for.</param>
+        /// <returns>A double that represents the modification from the base value of the given stat.</returns>
+        public double GetPassivesValue(Stats stat, Character target)
         {
-            return GetPassives(stat).Sum(x => x.GetModifier(stat).Amount * x.ConditionFulfill(targets));
+            return GetPassives(stat).Sum(x => x.GetModifier(stat).Amount * x.GetStacks(target));
+        }
+
+        // Both cuz im smart
+
+        /// <summary>
+        /// Gets the full outgoing generic damage modification for the given type, against the given target.
+        /// </summary>
+        /// <param name="target">The target for which to calculate passives. Null by default, which won't count passives.</param>
+        /// <returns>The modification value. 0 by default.</returns>
+        public double GetDamageBonus(Character target = null)
+        {
+            return GetActives<DamageBonus>().Sum(x => x.Amount * (x.Parent as StatusEffect).Stacks) + GetPassives<DamageBonus>().Sum(x => x.Amount * (x.Parent as PassiveEffect).GetStacks(target));
+        }
+        /// <summary>
+        /// Gets the full incoming generic damage modification for the given type, against the given target.
+        /// </summary>
+        /// <param name="target">The target for which to calculate passives. Null by default, which won't count passives.</param>
+        /// <returns>The modification value. 0 by default.</returns>
+        public double GetDamageRES(Character target = null)
+        {
+            return GetActives<DamageRES>().Sum(x => x.Amount * (x.Parent as StatusEffect).Stacks) + GetPassives<DamageRES>().Sum(x => x.Amount * (x.Parent as PassiveEffect).GetStacks(target));
+        }
+        /// <summary>
+        /// Gets the full outgoing type-specific damage modification for the given type, against the given target.
+        /// </summary>
+        /// <param name="type">The type of damage to calculate for.</param>
+        /// <param name="target">The target for which to calculate passives. Null by default, which won't count passives.</param>
+        /// <returns>The modification value. 0 by default.</returns>
+        public double GetDamageTypeBonus(DamageTypes type, Character target = null)
+        {
+            return GetActives<DamageTypeBonus>().FindAll(x => x.Type == type).Sum(x => x.Amount * (x.Parent as StatusEffect).Stacks) + GetPassives<DamageTypeBonus>().FindAll(x => x.Type == type).Sum(x => x.Amount * (x.Parent as PassiveEffect).GetStacks(target));
+        }
+        /// <summary>
+        /// Gets the full incoming type-specific damage modification for the given type, against the given target.
+        /// </summary>
+        /// <param name="type">The type of damage to calculate for.</param>
+        /// <param name="target">The target for which to calculate passives. Null by default, which won't count passives.</param>
+        /// <returns>The modification value. 0 by default.</returns>
+        public double GetDamageTypeRES(DamageTypes type, Character target = null)
+        {
+            return GetActives<DamageTypeRES>().FindAll(x => x.Type == type).Sum(x => x.Amount * (x.Parent as StatusEffect).Stacks) + GetPassives<DamageTypeBonus>().FindAll(x => x.Type == type).Sum(x => x.Amount * (x.Parent as PassiveEffect).GetStacks(target));
+        }
+        /// <summary>
+        /// Gets the full outgoing source-specific damage modification for the given type, against the given target.
+        /// </summary>
+        /// <param name="source">The source of damage to calculate for.</param>
+        /// <param name="target">The target for which to calculate passives. Null by default, which won't count passives.</param>
+        /// <returns>The modification value. 0 by default.</returns>
+        public double GetDamageSourceBonus(DamageSources source, Character target = null)
+        {
+            return GetActives<DamageSourceBonus>().FindAll(x => x.Source == source).Sum(x => x.Amount * (x.Parent as StatusEffect).Stacks) + GetPassives<DamageSourceBonus>().FindAll(x => x.Source == source).Sum(x => x.Amount * (x.Parent as PassiveEffect).GetStacks(target));
+        }
+        /// <summary>
+        /// Gets the full incoming source-specific damage modification for the given type, against the given target.
+        /// </summary>
+        /// <param name="source">The source of damage to calculate for.</param>
+        /// <param name="target">The target for which to calculate passives. Null by default, which won't count passives.</param>
+        /// <returns>The modification value. 0 by default.</returns>
+        public double GetDamageSourceRES(DamageSources source, Character target = null)
+        {
+            return GetActives<DamageSourceRES>().FindAll(x => x.Source == source).Sum(x => x.Amount * (x.Parent as StatusEffect).Stacks) + GetPassives<DamageSourceRES>().FindAll(x => x.Source == source).Sum(x => x.Amount * (x.Parent as PassiveEffect).GetStacks(target));
         }
         #endregion
 
@@ -462,21 +597,5 @@ namespace FrogBattle.Classes
             PoolChanged?.Invoke(null, change);
         }
         public abstract Ability SelectAbility(Character target, int selector);
-        public override string ToString()
-        {
-            return Name ?? "[UNNAMED]";
-        }
-        public string ToString(string format, IFormatProvider formatProvider)
-        {
-            if (format == null) return ToString();
-            else format = format.ToLower();
-            return format[0] switch
-            {
-                'p' => Pronouns.PronArray[int.Parse([format[1]])],
-                's' => Pronouns.Extra_S ? "s" : string.Empty,
-                'n' => ToString(),
-                _ => throw new FormatException($"Unknown format string parameter: {format[0]}"),
-            };
-        }
     }
 }

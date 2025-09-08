@@ -93,9 +93,9 @@ namespace FrogBattle.Classes
         {
             return source.Resolve(pool);
         }
-        public static string camelCase(this string str)
+        public static string GetLocalizedText(this Stats stat)
         {
-            return str.ToLower()[0] + str[1..];
+            return Localization.Translate(string.Join('.', typeof(Stats).Name.camelCase(), stat.ToString().camelCase()));
         }
     }
     internal static class IEnumerableExtensions
@@ -122,7 +122,7 @@ namespace FrogBattle.Classes
     {
         public static bool IsHit(this IAttack ability, Character Target)
         {
-            return ability.AttackInfo.HitRate == null || BattleManager.RNG < (ability.AttackInfo.HitRate + ability.Parent.GetStat(Stats.HitRateBonus) - (Target.GetStat(Stats.Dex) / 100));
+            return ability.AttackInfo.HitRate == null || BattleManager.RNG < (ability.AttackInfo.HitRate + ability.Parent.GetStatVersus(Stats.HitRateBonus, Target) - (Target.GetStatVersus(Stats.Dex, ability.Parent) / 100));
         }
         /// <summary>
         /// Creates a list containing every instance of damage dealt
@@ -170,28 +170,35 @@ namespace FrogBattle.Classes
                 $"{src.GetStat(Stats.Dex):0} DEX,",
                 $"{src.Mana:0} MP,",
                 $"{src.Energy:0}/{src.GetStat(Stats.MaxEnergy)}] ") + 
-                string.Join(' ', src.GetActives().Select((x) => string.Format(GameFormatProvider.Instance, "{0:xs}", x)));
+                string.Join(' ', src.GetActives().Where(x => !x.Is(Flags.Hidden)).Select(x => string.Format(GameFormatProvider.Instance, "{0:xs}", x)));
         }
         public static Ability Console_SelectAbility(this Character src)
         {
-            Ability result = null;
-            bool repeat = true;
-            while (repeat)
+            while (true)
             {
-                repeat = false;
                 Console.Write("{0} selects ability... ", src.Name);
                 try
                 {
                     int selector = int.Parse(Console.ReadLine());
-                    result = src.SelectAbility(src.EnemyTeam.Single(), selector);
+                    return src.SelectAbility(src.EnemyTeam.Single(), selector);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.Message);
-                    repeat = true;
                 }
             }
-            return result;
+        }
+    }
+    internal static class UniversalExtensions
+    {
+        public static string camelCase(this string str)
+        {
+            return str.ToLower()[0] + str[1..];
+        }
+        public static object CloneVariable(this object variable, out object varClone)
+        {
+            varClone = variable;
+            return variable;
         }
     }
 }

@@ -8,29 +8,23 @@ namespace FrogBattle.Classes
 {
     internal class PassiveEffect : IAttributeModifier
     {
-        private readonly Dictionary<object, Subeffect> _effects = [];
+        public Dictionary<object, Subeffect> Subeffects { get; } = [];
         public PassiveEffect(Character parent)
         {
             Source = parent;
         }
         public Character Source { get; }
-        public Character Target { get; set; }
-        /// <summary>
-        /// Function that determined whether (and how much) the condition is fulfilled.
-        /// </summary>
-        public Func<Character[], int> ConditionFulfill { get; init; }
-        public Dictionary<object, Subeffect> GetSubeffects()
-        {
-            return _effects;
-        }
+        public Character Target { get => Source; }
+        public required Condition Condition { protected get; init; }
+        public uint GetStacks(Character target) => target == null ? 0 : Condition.Get(target);
 
         /// <summary>
         /// Get all subeffects of type <typeparamref name="TResult"/> within this <see cref="PassiveEffect"/>.
         /// </summary>
         /// <returns>A dictionary containing every effect of type <typeparamref name="TResult"/>.</returns>
-        public Dictionary<object, TResult> GetSubeffects<TResult>() where TResult : Subeffect
+        public Dictionary<object, TResult> GetSubeffectsOfType<TResult>() where TResult : Subeffect
         {
-            return GetSubeffects().Values.OfType<TResult>().ToDictionary(x => x.GetKey());
+            return Subeffects.Values.OfType<TResult>().ToDictionary(x => x.GetKey());
         }
 
         /// <summary>
@@ -40,7 +34,13 @@ namespace FrogBattle.Classes
         /// <returns></returns>
         public Modifier GetModifier(Stats stat)
         {
-            return _effects.TryGetValue((typeof(Modifier), stat), out var result) ? result as Modifier : null;
+            return Subeffects.TryGetValue((typeof(Modifier), stat), out var result) ? result as Modifier : null;
+        }
+        // Builder methods
+        public PassiveEffect WithEffect(Subeffect effect)
+        {
+            Subeffects[effect.GetKey()] = effect;
+            return this;
         }
     }
 }

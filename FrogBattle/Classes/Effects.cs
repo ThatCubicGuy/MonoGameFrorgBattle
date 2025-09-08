@@ -10,7 +10,7 @@ namespace FrogBattle.Classes
     {
         public Subeffect(IAttributeModifier parent, bool buff)
         {
-            ArgumentNullException.ThrowIfNull(parent, $"{parent}, {buff}, {GetType()}");
+            ArgumentNullException.ThrowIfNull(parent, nameof(parent));
             Parent = parent;
             IsBuff = buff;
         }
@@ -24,6 +24,7 @@ namespace FrogBattle.Classes
         /// </summary>
         public Character TargetFighter => Parent.Target;
         public bool IsBuff { get; }
+        //public virtual double Amount { get; set; }
         public string TranslationKey { get => "effect.type." + GetType().Name.camelCase(); }
         public virtual string GetLocalizedText() => Localization.Translate(TranslationKey, GetFormatArgs());
         public abstract object[] GetFormatArgs();
@@ -47,7 +48,7 @@ namespace FrogBattle.Classes
         }
         public Stats Stat { get; }
         private Operators Op { get; }
-        public override object[] GetFormatArgs() => [Op == Operators.Additive ? Amount : ((_amount > 0 ? '+' : string.Empty) + (_amount * 100).ToString("P")), Stat];
+        public override object[] GetFormatArgs() => [Op == Operators.Additive ? (Amount > 0 ? '+' : string.Empty) + Amount.ToString("F0") : ((_amount > 0 ? '+' : string.Empty) + (_amount * 100).ToString("P")), Stat.GetLocalizedText()];
         public override object GetKey() => (typeof(Modifier), Stat);
 
     }
@@ -61,7 +62,6 @@ namespace FrogBattle.Classes
             if (maxAmount != null) this.maxAmount = maxAmount.Value;
             Amount = amount;
             ShieldType = shieldType;
-            Healing = healPerTurn;
         }
         public double Amount
         {
@@ -72,14 +72,12 @@ namespace FrogBattle.Classes
             }
         }
         public DamageTypes? ShieldType { get; }
-        public double? Healing { get; }
         public override object[] GetFormatArgs()
         {
             // need to go through an intermediary step of deserialization before passing resolved string as argument
             var addons = new List<string>();
             if (ShieldType != null) addons.Add(Localization.Translate(TranslationKey + ".addon.type", ShieldType));
             addons.Add(Localization.Translate(TranslationKey + ".addon"));
-            if (Healing != null) addons.Add(Localization.Translate(TranslationKey + ".addon.healing", Healing));
             var addonText = string.Join(' ', addons);
             return [Amount, addonText];
         }
@@ -103,6 +101,7 @@ namespace FrogBattle.Classes
                 currentCount = Math.Min(value, maxCount);
             }
         }
+        //public override double Amount => Count;
         public override object[] GetFormatArgs() => [Count];
         public override object GetKey() => typeof(Barrier);
     }
@@ -142,15 +141,18 @@ namespace FrogBattle.Classes
         /// </summary>
         public double Amount
         {
-            get => Op.Apply(_amount, TargetFighter.Hp);
+            get => Op.Apply(_amount, TargetFighter.Hp) * (Parent as StatusEffect).Stacks;
         }
         private Operators Op { get; }
         public DamageInfo DamageProps { get; }
         /// <summary>
-        /// Get the damage associated with this DoT instance, optionally at a different ratio.
+        /// The type of DoT. There are four base types, but it can just be none of them. Some characters use this.
         /// </summary>
-        /// <param name="ratio">The ratio of DoT amount to actual Damage.</param>
-        /// <returns></returns>
+        public DoTTypes Type { get; init; } = DoTTypes.None;
+        /// <summary>
+        /// Get the damage associated with this DoT instance.
+        /// </summary>
+        /// <returns>An instance of Damage associated with this Damage-over-Time.</returns>
         public Damage GetDamage() => new(SourceFighter, TargetFighter, Amount, DamageProps);
         public override object[] GetFormatArgs() => [GetDamage().Amount];
         public override object GetKey() => typeof(DamageOverTime);
@@ -168,15 +170,14 @@ namespace FrogBattle.Classes
         /// </summary>
         public double Amount
         {
-            get => Op.Apply(_amount, TargetFighter.Hp);
+            get => Op.Apply(_amount, TargetFighter.Hp) * (Parent as StatusEffect).Stacks;
         }
         private Operators Op { get; }
         /// <summary>
-        /// Get the damage associated with this DoT instance, optionally at a different ratio.
+        /// Gets the healing associated with this HoT (lmao) instance.
         /// </summary>
-        /// <param name="ratio">The ratio of DoT amount to actual Damage.</param>
-        /// <returns></returns>
-        public Healing GetHealing() => new(SourceFighter, TargetFighter, Amount);
+        /// <returns>An instance of Healing associated with this Healing-over-Time.</returns>
+        public Healing GetHealing() => new(SourceFighter, TargetFighter, new(Amount));
         public override object[] GetFormatArgs() => [GetHealing().Amount];
         public override object GetKey() => typeof(DamageOverTime);
     }
@@ -320,6 +321,7 @@ namespace FrogBattle.Classes
         {
             get => (Parent as StatusEffect).Turns;
         }
+        //public override double Amount => Count;
         public override object[] GetFormatArgs() => [Count];
         public override object GetKey() => typeof(Stun); // might add stun type like freeze, etc
     }

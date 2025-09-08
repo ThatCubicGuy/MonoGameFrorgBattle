@@ -13,8 +13,8 @@ namespace FrogBattle.Classes
     {
         private static readonly Random random = new();
         public static double RNG => random.NextDouble();
-        public List<ActionItem> ActionBar { get; } = [];
-        public List<ITakesAction> InstaQueue { get; } = [];
+        public List<ActionItem> ActionBar { get; private set; } = [];
+        public List<ITakesAction> InstaQueue { get; private set; } = [];
         public List<Character> Team1 { get; } = new List<Character>(4);
         public List<Character> Team2 { get; } = new List<Character>(4);
         public Character LeftSide { get => Team1.Single(); }
@@ -32,7 +32,6 @@ namespace FrogBattle.Classes
             if (OperatingSystem.IsOSPlatform("windows")) Console.WindowWidth = 160;
             Console.BackgroundColor = ConsoleColor.Black;
             Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine("helphlephllbklbhbpblpblb\n");
             Console.Write("Select player 1: ");
             int p1 = int.Parse(Console.ReadLine());
             Console.Write("Select player 2: ");
@@ -70,21 +69,9 @@ namespace FrogBattle.Classes
             {
                 while (true)
                 {
-                    //Console.Clear();
                     ActionBar.Sort();
-                    while (InstaQueue.Count > 0)
-                    {
-                        var item = InstaQueue.First();
-                        item.TakeAction();
-                        InstaQueue.Remove(item);
-                    }
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine(LeftSide.Console_ToString());
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(RightSide.Console_ToString());
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine(BattleText.ToString());
-                    BattleText.Clear();
+                    RunInstaQueue();
+                    UpdateText();
                     var nextUp = ActionBar.First();
                     double minActionValue = nextUp.ActionValue;
                     ActionBar.ForEach(item => { item.ActionValue -= minActionValue; });
@@ -96,10 +83,34 @@ namespace FrogBattle.Classes
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
-                Console.WriteLine("[From Battle.Run()]");
+                Console.WriteLine(ex);
+                Console.WriteLine("[From BattleManager.Run()]");
             }
             return turns;
+        }
+        public void RunInstaQueue()
+        {
+            while (InstaQueue.Count > 0)
+            {
+                var item = InstaQueue.First();
+                item.TakeAction();
+                InstaQueue.Remove(item);
+            }
+        }
+        public virtual void UpdateText()
+        {
+            //Console.Clear();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(LeftSide.Console_ToString());
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(RightSide.Console_ToString());
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine(BattleText);
+            BattleText.Clear();
+        }
+        public virtual void Kill(Character character)
+        {
+            if (!Team1.Remove(character) && !Team2.Remove(character)) throw new InvalidOperationException($"Cannot kill character {character.Name} because they are not part of the battle.");
         }
     }
     internal class ActionItem(IHasTurn Actor) : IComparable<ActionItem>

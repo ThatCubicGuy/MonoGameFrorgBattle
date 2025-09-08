@@ -32,10 +32,14 @@ namespace FrogBattle.Classes
         AttackInfo AttackInfo { get; }
     }
 
+    internal interface IHealing : IHasTarget
+    {
+        HealingInfo HealingInfo { get; }
+    }
+
     internal interface IAppliesEffect : IHasTarget
     {
-        EffectInfo EffectInfo { get; }
-        bool ApplyEffect(Character target);
+        EffectInfo[] EffectInfos { get; }
     }
 
     internal interface IPoolChange
@@ -54,5 +58,6 @@ namespace FrogBattle.Classes
     {
         Character Source { get; }
         Character Target { get; }
+        Dictionary<object, Subeffect> Subeffects { get; }
     }
 }

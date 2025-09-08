@@ -3,21 +3,43 @@ using System.Text;
 
 namespace TestPlace
 {
+    internal static class Extensions
+    {
+        public static string camelCase(this string str)
+        {
+            return str.ToLower()[0] + str[1..];
+        }
+    }
     internal class Program
     {
         static void Main(string[] args)
         {
-            Console.WriteLine('\u2191' == '↑');
-            foreach (var item in Enum.GetValues(typeof(AMOGUS)))
+            foreach (var item in Enum.GetValues(typeof(Stats)))
             {
-                Console.WriteLine(item.ToString());
+                Console.WriteLine($"\"stats.{item.ToString()?.camelCase()}\": \"\",");
             }
-            var bruh = int.Parse(Console.ReadLine() ?? string.Empty);
-            var buddy = Enumerator(bruh);
-            while (buddy.MoveNext())
-            {
-                Console.WriteLine(buddy.Current);
-            }
+        }
+        public enum Stats
+        {
+            None,
+            MaxHp,
+            MaxMana,
+            MaxEnergy,          // Positive = Bad
+            Atk,
+            Def,
+            Spd,
+            Dex,
+            CritRate,
+            CritDamageBonus,
+            HitRateBonus,
+            EffectHitRate,
+            EffectRES,
+            ManaCost,           // Positive = Bad
+            ManaRegen,
+            EnergyRecharge,
+            IncomingHealing,
+            OutgoingHealing,
+            ShieldToughness,
         }
         private static IEnumerator<string> Enumerator(int count)
         {

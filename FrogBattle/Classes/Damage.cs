@@ -23,7 +23,7 @@ namespace FrogBattle.Classes
             Source = source;
             Target = target;
             baseAmount = amount;
-            DamageInfo = info;
+            Info = info;
             if (info.CanCrit) Crit = source.IsCrit(target);
             else Crit = false;
         }
@@ -41,33 +41,33 @@ namespace FrogBattle.Classes
                 // Outgoing bonuses
                 if (Source != null)
                 {
-                    total += total * (
-                        + Source.GetActives<DamageTypeBonus>().FindAll(x => x.Type == DamageInfo.Type).Sum(x => x.Amount)
-                        + Source.GetActives<DamageSourceBonus>().FindAll(x => x.Source == DamageInfo.Source).Sum(x => x.Amount)
-
-                        + Source.GetPassives<DamageTypeBonus>().FindAll(x => x.Type == DamageInfo.Type).Sum(x => x.Amount)
-                        + Source.GetPassives<DamageSourceBonus>().FindAll(x => x.Source == DamageInfo.Source).Sum(x => x.Amount)
-                        );
+                    total += total * (Source.GetDamageTypeBonus(Info.Type, Target) + Source.GetDamageSourceBonus(Info.Source, Target));
                     total += Crit ? total * Source.GetStatVersus(Stats.CritDamageBonus, Target) : 0;
-                    total += total * Source.GetActives<DamageBonus>().Sum(x => x.Amount);
+                    total += total * Source.GetDamageBonus(Target);
                 }
                 // Incoming bonuses
                 if (Target != null)
                 {
-                    total -= total * (Target.GetActives<DamageTypeRES>().FindAll((x) => x.Type == DamageInfo.Type).Sum(x => x.Amount) * (1 - DamageInfo.TypeResPen) + Target.GetActives<DamageSourceRES>().FindAll((x) => x.Source == DamageInfo.Source).Sum(x => x.Amount)/* * (1 - Props.SourceResPen) // idk maybe one day :pensive:*/);
-                    total -= Target.GetStat(Stats.Def) * (1 - DamageInfo.DefenseIgnore);
-                    total -= total * Source.GetActives<DamageRES>().Sum(x => x.Amount);
+                    total -= total * (Target.GetDamageTypeRES(Info.Type, Source) * (1 - Info.TypeResPen) + Target.GetDamageSourceRES(Info.Source, Target));
+                    total -= Target.GetStatVersus(Stats.Def, Source) * (1 - Info.DefenseIgnore);
+                    total -= total * Target.GetDamageRES(Source);
                 }
                 return total;
             }
         }
         public Character Source { get; }
         public Character Target { get; }
-        public DamageInfo DamageInfo { get; }
+        public DamageInfo Info { get; }
         public bool Crit { get; }
-        public DamageSnapshot GetSnapshot() => new(Amount, DamageInfo, Source);
-        public void Take(double ratio) => Target.TakeDamage(this, ratio);
+        public DamageSnapshot GetSnapshot(double ratio) => new(Amount * ratio, Info, Crit, Source, Target);
+        public double Take(double ratio = 1)
+        {
+            // ?
+            var snapshot = GetSnapshot(ratio);
+            Target.TakeDamage(this, ratio);
+            return snapshot.Amount;
+        }
         public Damage Clone() => MemberwiseClone() as Damage;
-        public record DamageSnapshot(double Amount, DamageInfo Info, Character Source = null);
+        public record DamageSnapshot(double Amount, DamageInfo Info, bool IsCrit, Character Source = null, Character Target = null);
     }
 }

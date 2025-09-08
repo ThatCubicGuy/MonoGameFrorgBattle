@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Data.Common;
 using System.Linq;
 using System.Text;
@@ -9,28 +10,24 @@ using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
-    internal class StatusEffect : IAttributeModifier
+    internal abstract class StatusEffect : IAttributeModifier
     {
         private readonly object _uid;
-        private readonly Dictionary<object, Subeffect> _effects = [];
         private uint stacks = 1;
+        private uint turns;
         
-        public StatusEffect(Character source, Character target, uint turns, uint maxStacks, Flags properties, params Subeffect[] effects)
+        public StatusEffect(Character source, Character target, uint turns, uint maxStacks, Flags properties)
         {
             Source = source;
             Target = target;
             Turns = turns;
             MaxStacks = maxStacks;
             Properties = properties;
-            foreach (var mod in effects)
-            {
-                _effects[mod.GetKey()] = mod;
-            }
             _uid = GetType();
         }
         public StatusEffect(StatusEffect other) : this(other.Source, other.Target, other.Turns, other.MaxStacks, other.Properties)
         {
-            _effects = new(other._effects);
+            Subeffects = new(other.Subeffects);
             _uid = other._uid;
         }
 
@@ -50,7 +47,7 @@ namespace FrogBattle.Classes
         }
         public override int GetHashCode()
         {
-            return HashCode.Combine(_effects, MaxStacks, Properties);
+            return HashCode.Combine(_uid, Subeffects, MaxStacks, Properties);
         }
 
         public string Name { get; set; }
@@ -62,7 +59,8 @@ namespace FrogBattle.Classes
         /// The character to which this effect is applied.
         /// </summary>
         public Character Target { get; }
-        public uint Turns { get; private set; }
+        public Dictionary<object, Subeffect> Subeffects { get; } = [];
+        public uint Turns { get => turns; init => turns = value; }
         public uint Stacks
         {
             get => stacks;
@@ -71,8 +69,8 @@ namespace FrogBattle.Classes
                 stacks = Math.Min(value, MaxStacks);
             }
         }
-        public uint MaxStacks { get; private set; }
-        public Flags Properties { get; private set; }
+        public uint MaxStacks { get; init; }
+        public Flags Properties { get; }
 
         [Flags] public enum Flags
         {
@@ -97,31 +95,22 @@ namespace FrogBattle.Classes
         /// <returns>True if the StatusEffect has run out of turns and should be removed, false otherwise.</returns>
         public bool Expire()
         {
-            return !(Is(Flags.Infinite) || (--Turns > 0));
+            return !(Is(Flags.Infinite) || (--turns > 0));
         }
 
         public StatusEffect AddEffect(Subeffect effect)
         {
-            _effects[effect.GetKey()] = effect;
+            Subeffects[effect.GetKey()] = effect;
             return this;
-        }
-
-        /// <summary>
-        /// Get all subeffects within this <see cref="StatusEffect"/>.
-        /// </summary>
-        /// <returns>A dictionary containing every effect.</returns>
-        public Dictionary<object, Subeffect> GetSubeffects()
-        {
-            return _effects;
         }
 
         /// <summary>
         /// Get all subeffects of type <typeparamref name="TResult"/> within this <see cref="StatusEffect"/>.
         /// </summary>
         /// <returns>A dictionary containing every effect of type <typeparamref name="TResult"/>.</returns>
-        public Dictionary<object, TResult> GetSubeffects<TResult>() where TResult : Subeffect
+        public Dictionary<object, TResult> GetSubeffectsOfType<TResult>() where TResult : Subeffect
         {
-            return GetSubeffects().Values.OfType<TResult>().ToDictionary(x => x.GetKey());
+            return Subeffects.Values.OfType<TResult>().ToDictionary(x => x.GetKey());
         }
 
         /// <summary>
@@ -134,7 +123,7 @@ namespace FrogBattle.Classes
         /// <returns></returns>
         public TResult SingleEffect<TResult>() where TResult : Subeffect
         {
-            return GetSubeffects().Values.OfType<TResult>().SingleOrDefault();
+            return Subeffects.Values.OfType<TResult>().SingleOrDefault();
         }
 
         /// <summary>
@@ -144,12 +133,7 @@ namespace FrogBattle.Classes
         /// <returns></returns>
         public Modifier GetModifier(Stats stat)
         {
-            return GetSubeffects<Modifier>().TryGetValue((typeof(Modifier), stat), out var result) ? result : null;
-        }
-
-        public override string ToString()
-        {
-            return string.Join(", ", _effects.Values.Select(x => x.GetLocalizedText()));
+            return GetSubeffectsOfType<Modifier>().TryGetValue((typeof(Modifier), stat), out var result) ? result : null;
         }
     }
 }

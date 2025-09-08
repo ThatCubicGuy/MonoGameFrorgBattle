@@ -1,5 +1,7 @@
-﻿using System;
+﻿using Microsoft.Xna.Framework.Graphics;
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -25,41 +27,73 @@ namespace FrogBattle.Classes
             else format = format.ToLower();
             return arg switch
             {
-                //string.Join(' ', format.Select(x => x switch { })), was the compounding option. could've worked tbh
-                StatusEffect ef => format[0] switch
+                Damage dm => format[0] == 'x' ? (format.Length == 1 ? throw new FormatException("Unable to use auto formatting without a second token") : Localization.Translate("damage.display." + format[1] switch
+                {
+                    // f - Full
+                    'f' => "full",
+                    // s - Short
+                    's' => "short",
+                    // Unknown
+                    _ => throw new FormatException($"Unknown format string token: {format[1]}")
+                }, dm)) : string.Join(' ', format.Select(x => x switch
+                {
+                    // a - Amount
+                    'a' => dm.Amount.ToString("F0"),
+                    // t - Type
+                    't' => Localization.Translate("damage.type." + dm.Info.Type.ToString().camelCase()),
+                    // s - Source
+                    's' => Localization.Translate("damage.source." + dm.Info.Source.ToString().camelCase()),
+                    // c - Critical
+                    'c' => dm.Crit ? Localization.Translate("damage.critical") : null,
+                    // Unknown
+                    _ => throw new FormatException($"Unknown format string token: {x}")
+                }).Where(x => x != null)),
+
+                StatusEffect ef => format[0] == 'x' ? (format.Length == 1 ? throw new FormatException("Unable to use auto formatting without second token") : Localization.Translate("effect.display." + format[1] switch
+                {
+                    // s - Simple
+                    's' => "simple",
+                    // t - Text (Natural Language)
+                    't' => "text",
+                    // n - Nameless
+                    'n' => "nameless",
+                    // e - Effects only
+                    'e' => "effects",
+                    // Unknown
+                    _ => throw new FormatException($"Unknown format string token: {format[1]}")
+                }, ef, ef.Is(Flags.Infinite) ? null : Localization.Translate("effect.display." + (format[1] == 's' ? "simple" : "generic") + ".turnAddon", ef))) : string.Join(' ', format.Select(x => x switch
                 {
                     // n - Name
                     'n' => ef.Name,
                     // e - Effects
-                    'e' => ef.ToString(),
+                    'e' => string.Join(", ", ef.Subeffects.Values.Select(x => x.GetLocalizedText())),
                     // t - Turns
                     't' => ef.Is(Flags.Infinite) ? "∞" : ef.Turns.ToString(),
-                    // b - Buff
-                    'b' => ef.Is(Flags.Debuff) ? "↓" : "↑",
-                    // x - Auto localize
-                    'x' => format.Length == 1 ? throw new FormatException("Unable to use auto localization without second parameter") : format[1] switch
-                    {
-                        // s - Simple
-                        's' => Localization.Translate("effect.display.simple", ef, ef.Is(Flags.Infinite) ? null :
-                        Localization.Translate("effect.display.simple.turnAddon", ef)),
-                        // t - Text (Natural Language)
-                        't' => Localization.Translate("effect.display.text", ef, ef.Is(Flags.Infinite) ? null :
-                        Localization.Translate("effect.display.text.turnAddon", ef)),
-                        // n - Nameless
-                        'n' => Localization.Translate("effect.display.nameless", ef, ef.Is(Flags.Infinite) ? null :
-                        Localization.Translate("effect.display.nameless.turnAddon", ef)),
-                        _ => throw new FormatException($"Unknown format string parameter: {format[1]}")
-                    },
-                    _ => throw new FormatException($"Unknown format string parameter: {format[0]}")
-                },
+                    // s - Stacks + Buff / Debuff arrow
+                    's' => ef.Stacks < 5 ? new string(ef.Is(Flags.Debuff) ? '↓' : '↑', (int)ef.Stacks) : ((ef.Is(Flags.Debuff) ? '↓' : '↑') + ef.Stacks.ToString()),
+                    // b - Buff / Debuff (word)
+                    'b' => ef.Is(Flags.Debuff) ? "debuff" : "buff",
+                    // Unknown
+                    _ => throw new FormatException($"Unknown format string token: {format[0]}")
+                }).Where(x => x != null)),
+
                 Character ch => format[0] switch
                 {
-                    'p' => format.Length == 1 ? throw new FormatException("Pronoun key requires selector") : ch.Pronouns.PronArray[int.Parse([format[1]])],
+                    // c - Caps
+                    'c' => string.Format(Instance, $"{{0:{format[1..]}}}", arg).ToUpper(),
+                    // p - Pronoun
+                    'p' => format.Length == 1 ? throw new FormatException("Pronoun token requires selector") : ch.Pronouns.PronArray[int.Parse([format[1]])],
+                    // e - Extra "es" for the verbs of some pronouns
+                    'e' => ch.Pronouns.Extra_S ? "es" : string.Empty,
+                    // s - Extra 's' for the verbs of some pronouns
                     's' => ch.Pronouns.Extra_S ? "s" : string.Empty,
-                    'n' => ch.ToString(),
-                    _ => throw new FormatException($"Unknown format string parameter: {format[0]}")
+                    // n - Name
+                    'n' => ch.Name,
+                    // Unknown
+                    _ => throw new FormatException($"Unknown format string token: {format[0]}")
                 },
-                _ => arg.ToString()
+                // Double it and pass it to the next user!
+                _ => string.Format($"{{0:{format}}}", arg)
             };
         }
     }

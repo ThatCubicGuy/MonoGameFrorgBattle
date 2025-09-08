@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static FrogBattle.Classes.Ability;
 
 namespace FrogBattle.Classes
 {
@@ -18,7 +19,7 @@ namespace FrogBattle.Classes
     {
         public string[] PronArray => [Subjective, Objective, Attributive, Absolute, Reflexive];
     }
-    public record DamageInfo
+    internal record DamageInfo
     (
         DamageTypes Type = DamageTypes.None,
         DamageSources Source = DamageSources.None,
@@ -26,9 +27,21 @@ namespace FrogBattle.Classes
         double TypeResPen = 0,
         bool CanCrit = true
     );
-    public record AbilityInfo
+    internal record HealingInfo
     (
-        bool RepeatsTurn = false
+        double Amount,
+        uint DebuffCleanse = 0
+    );
+    /// <summary>
+    /// Information related to the current ability.
+    /// </summary>
+    /// <param name="Costs">Pool changes that execute after the ability is checked, but before it is launched.</param>
+    /// <param name="Rewards">Pool changes only execute if the ability is launched successfully (e.g. not a miss).</param>
+    /// <param name="Conditions">Requirements for launching the ability. These are not taxed.</param>
+    /// <param name="AdditionalEffects">Additional effects at the end of the ability.</param>
+    internal record AbilityInfo
+    (
+
     );
     internal record AttackInfo
     (

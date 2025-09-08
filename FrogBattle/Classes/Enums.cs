@@ -67,14 +67,14 @@ namespace FrogBattle.Classes
         Fixed,
         Base
     }
-    public enum EffectType
+    public enum EffectTypes
     {
         Custom,
         Modifier,
         Shield,
         Barrier,
         Drain,
-        DoT
+        DamageOverTime
     }
     public enum Scalars
     {
@@ -113,7 +113,36 @@ namespace FrogBattle.Classes
         Damage15 = 15,
         Damage16 = 16,
         ApplyEffect,
+        Healing,
         Miss,
         End
+    }
+    public enum ConditionTypes
+    {
+        EffectStacks,
+        EffectsTypeCount,
+        EffectTypeStacks,
+        // For every 1000 atk, get 10% crit rate ahh
+        StatValue,
+        // When above 1000 atk, get 10% crit rate ahh
+        StatThreshold,
+        // For every 100 HP / 10% of MaxHP, get 10% crit rate
+        PoolValue,
+        // When above 100 HP / 10% of MaxHP, get 10% crit rate
+        PoolThreshold
+    }
+    public enum AdditionalEffectTypes
+    {
+        AdditionalDamage,
+        TriggersDot,
+        FollowUp,
+    }
+    [Flags] public enum DoTTypes
+    {
+        None = 0,
+        Bleed   = 1 << 0,
+        Burn    = 1 << 1,
+        Shock   = 1 << 2,
+        WindShear = 1 << 3,
     }
 }
