@@ -25,7 +25,7 @@ namespace FrogBattle.Classes
         public Character TargetFighter => Parent.Target;
         public bool IsBuff { get; }
         //public virtual double Amount { get; set; }
-        public string TranslationKey { get => "effect.type." + GetType().Name.camelCase(); }
+        public string TranslationKey { get => "effect.type." + GetType().Name.FirstLower(); }
         public virtual string GetLocalizedText() => Localization.Translate(TranslationKey, GetFormatArgs());
         public abstract object[] GetFormatArgs();
         public abstract object GetKey();
@@ -124,7 +124,7 @@ namespace FrogBattle.Classes
         }
         public Pools Pool { get; }
         private Operators Op { get; }
-        public override object[] GetFormatArgs() => [Op == Operators.Additive ? Amount : ($"{(_amount > 0 ? '+' : string.Empty)}{_amount * 100:P}"), Pool];
+        public override object[] GetFormatArgs() => [Op == Operators.Additive ? Amount : $"{(_amount > 0 ? '+' : string.Empty)}{_amount * 100:P}", Pool];
         public override object GetKey() => (typeof(PerTurnChange), Pool);
     }
     internal class DamageOverTime : Subeffect

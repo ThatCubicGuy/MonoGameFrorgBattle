@@ -37,7 +37,7 @@ namespace FrogBattle.Classes
         Spd,
         Dex,
         CritRate,
-        CritDamageBonus,
+        CritDamage,
         HitRateBonus,
         EffectHitRate,
         EffectRES,

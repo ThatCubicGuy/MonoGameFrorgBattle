@@ -42,7 +42,7 @@ namespace FrogBattle.Classes
                 if (Source != null)
                 {
                     total += total * (Source.GetDamageTypeBonus(Info.Type, Target) + Source.GetDamageSourceBonus(Info.Source, Target));
-                    total += Crit ? total * Source.GetStatVersus(Stats.CritDamageBonus, Target) : 0;
+                    total += Crit ? total * Source.GetStatVersus(Stats.CritDamage, Target) : 0;
                     total += total * Source.GetDamageBonus(Target);
                 }
                 // Incoming bonuses

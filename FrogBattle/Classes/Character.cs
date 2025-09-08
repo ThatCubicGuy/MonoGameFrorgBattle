@@ -59,7 +59,7 @@ namespace FrogBattle.Classes
         #endregion
         public Character(string name, BattleManager battle, bool IS_TEAM_1, Dictionary<Stats, double> overrides = null)
         {
-            _internalName = string.Join('.', typeof(Character).Name.camelCase(), GetType().Name.camelCase());
+            _internalName = string.Join('.', typeof(Character).Name.FirstLower(), GetType().Name.FirstLower());
             Name = name;
             ParentBattle = battle;
             if (IS_TEAM_1)

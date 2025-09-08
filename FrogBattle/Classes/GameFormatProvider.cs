@@ -40,9 +40,9 @@ namespace FrogBattle.Classes
                     // a - Amount
                     'a' => dm.Amount.ToString("F0"),
                     // t - Type
-                    't' => Localization.Translate("damage.type." + dm.Info.Type.ToString().camelCase()),
+                    't' => Localization.Translate("damage.type." + dm.Info.Type.ToString().FirstLower()),
                     // s - Source
-                    's' => Localization.Translate("damage.source." + dm.Info.Source.ToString().camelCase()),
+                    's' => Localization.Translate("damage.source." + dm.Info.Source.ToString().FirstLower()),
                     // c - Critical
                     'c' => dm.Crit ? Localization.Translate("damage.critical") : null,
                     // Unknown
@@ -55,6 +55,8 @@ namespace FrogBattle.Classes
                     's' => "simple",
                     // t - Text (Natural Language)
                     't' => "text",
+                    // o - Turns only
+                    'o' => "onlyTurns",
                     // n - Nameless
                     'n' => "nameless",
                     // e - Effects only
@@ -81,6 +83,8 @@ namespace FrogBattle.Classes
                 {
                     // c - Caps
                     'c' => string.Format(Instance, $"{{0:{format[1..]}}}", arg).ToUpper(),
+                    // u - Uppercase first letter
+                    'u' => string.Format(Instance, $"{{0:{format[1..]}}}", arg).FirstUpper(),
                     // p - Pronoun
                     'p' => format.Length == 1 ? throw new FormatException("Pronoun token requires selector") : ch.Pronouns.PronArray[int.Parse([format[1]])],
                     // e - Extra "es" for the verbs of some pronouns

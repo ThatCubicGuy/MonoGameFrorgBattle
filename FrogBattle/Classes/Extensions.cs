@@ -95,7 +95,7 @@ namespace FrogBattle.Classes
         }
         public static string GetLocalizedText(this Stats stat)
         {
-            return Localization.Translate(string.Join('.', typeof(Stats).Name.camelCase(), stat.ToString().camelCase()));
+            return Localization.Translate(string.Join('.', typeof(Stats).Name.FirstLower(), stat.ToString().FirstLower()));
         }
     }
     internal static class IEnumerableExtensions
@@ -191,14 +191,13 @@ namespace FrogBattle.Classes
     }
     internal static class UniversalExtensions
     {
-        public static string camelCase(this string str)
+        public static string FirstLower(this string str)
         {
-            return str.ToLower()[0] + str[1..];
+            return str.ToLower()[0] + (str.Length > 1 ? str[1..] : string.Empty);
         }
-        public static object CloneVariable(this object variable, out object varClone)
+        public static string FirstUpper(this string str)
         {
-            varClone = variable;
-            return variable;
+            return str.ToUpper()[0] + (str.Length > 1 ? str[1..] : string.Empty);
         }
     }
 }

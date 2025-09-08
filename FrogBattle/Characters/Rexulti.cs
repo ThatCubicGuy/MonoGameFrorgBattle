@@ -12,29 +12,45 @@ namespace FrogBattle.Characters
     internal class Rexulti : Character
     {
         // Passives
-        private PassiveEffect CritRateAndDamageBoost()
+        private PassiveEffect CritRateAndDamageBoost
         {
-            var result = new PassiveEffect(this)
+            get
             {
-                Condition = new EffectsTypeCount<DamageOverTime>(new(Max: 10))
-            };
-            var effect1 = new Modifier(result, 0.02, Stats.CritRate, Operators.Additive);
-            var effect2 = new Modifier(result, 0.05, Stats.CritDamageBonus, Operators.Additive);
-            result.Subeffects[effect1.GetKey()] = effect1;
-            result.Subeffects[effect2.GetKey()] = effect2;
-            return result;
+                var result = new PassiveEffect(this)
+                {
+                    Condition = new EffectsTypeCount<DamageOverTime>(new(Max: 10))
+                };
+                var effect1 = new Modifier(result, 0.02, Stats.CritRate, Operators.Additive);
+                var effect2 = new Modifier(result, 0.05, Stats.CritDamage, Operators.Additive);
+                result.Subeffects[effect1.GetKey()] = effect1;
+                result.Subeffects[effect2.GetKey()] = effect2;
+                return result;
+            }
+        }
+        private PassiveEffect EnergyRequirementReduction
+        {
+            get
+            {
+                var result = new PassiveEffect(this)
+                {
+                    Condition = new EffectsTypeCount<DamageOverTime>(new(Max: 1))
+                };
+                var effect1 = new Modifier(result, -100, Stats.MaxEnergy, Operators.Additive);
+                result.Subeffects[effect1.GetKey()] = effect1;
+                return result;
+            }
         }
         public Rexulti(string name, BattleManager battle, bool team) : base(name, battle, team, new()
         {
-            { Stats.MaxHp, 250000 },
-            { Stats.MaxEnergy, 5 },
-            { Stats.Atk, 800 },
-            { Stats.Dex, 10 },
+            { Stats.MaxHp, Registry.DefaultStats[Stats.MaxHp] * 0.375 },
+            { Stats.Atk, Registry.DefaultStats[Stats.Atk] * 0.8 },
+            { Stats.Dex, 5 },
             { Stats.CritRate, 0.05 },
         })
         {
             Pronouns = new("he", "him", "his", "his", "himself", true);
-            PassiveEffects.Add(CritRateAndDamageBoost());
+            PassiveEffects.Add(CritRateAndDamageBoost);
+            PassiveEffects.Add(EnergyRequirementReduction);
             DamageDealt += DoTEnergyRecharge;
             DamageDealt += BlessedDoTBoost;
             EffectApplied += BlessedDoTApplication;
@@ -368,7 +384,7 @@ namespace FrogBattle.Characters
             }
             public Devastate(Character source, Character target) : base(source, target, new())
             {
-                WithGenericCost(new(this, source.GetStat(Stats.MaxEnergy), Pools.Energy, Operators.Additive));
+                WithBurstCost();
             }
             private protected override bool Use()
             {
@@ -399,6 +415,28 @@ namespace FrogBattle.Characters
                 AddText(text[TextTypes.End], Parent, Target, finalDamage);
                 Target.DamageTaken -= checkTotalDamage;
                 return true;
+            }
+        }
+        public class Phase2 : Character
+        {
+            public Phase2(string name, BattleManager battle, bool IS_TEAM_1) : base(name, battle, IS_TEAM_1, new()
+            {
+                { Stats.MaxHp, Registry.DefaultStats[Stats.MaxHp] * 0.625 },
+                { Stats.Atk, Registry.DefaultStats[Stats.Atk] * 1.1 },
+                { Stats.Dex, 10 },
+                { Stats.CritRate, 0.20 },
+                { Stats.CritDamage, 0.65 },
+            })
+            {
+
+            }
+            public override Ability SelectAbility(Character target, int selector)
+            {
+                return selector switch
+                {
+                    0 => new SkipTurn(this),
+                    _ => throw new ArgumentOutOfRangeException(nameof(selector), $"Invalid ability number: {selector}"),
+                };
             }
         }
     }

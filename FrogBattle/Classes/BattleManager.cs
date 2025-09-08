@@ -99,7 +99,7 @@ namespace FrogBattle.Classes
         }
         public virtual void UpdateText()
         {
-            //Console.Clear();
+            Console.Clear();
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine(LeftSide.Console_ToString());
             Console.ForegroundColor = ConsoleColor.Red;

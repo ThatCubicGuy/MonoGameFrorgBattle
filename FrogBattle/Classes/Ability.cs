@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Xna.Framework.Graphics;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
@@ -8,7 +9,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace FrogBattle.Classes
 {
@@ -40,8 +40,8 @@ namespace FrogBattle.Classes
                 {
                     AddText("conditions.missing.generic", Localization.Translate(item.Value switch
                     {
-                        StatThresholdCondition st => "stats." + st.Stat.ToString().camelCase(),
-                        PoolAmountCondition pl => "pools." + pl.Pool.ToString().camelCase(),
+                        StatThresholdCondition st => "stats." + st.Stat.ToString().FirstLower(),
+                        PoolAmountCondition pl => "pools." + pl.Pool.ToString().FirstLower(),
                         Condition cn => "generic"
                     }));
                     return false;
@@ -86,7 +86,7 @@ namespace FrogBattle.Classes
                     result.Add((TextTypes)item, string.Join('.', baseName, item.ToString().camelCase()));
             return result;
             */
-            return Enum.GetValues(typeof(TextTypes)).Cast<TextTypes>().Select(x => new KeyValuePair<TextTypes, string>(x, string.Join('.', Parent._internalName, typeof(Ability).Name.camelCase(), GetType().Name.camelCase(), "text", x.ToString().camelCase()))).Where(x => Localization.strings.ContainsKey(x.Value)).ToDictionary();
+            return Enum.GetValues(typeof(TextTypes)).Cast<TextTypes>().Select(x => new KeyValuePair<TextTypes, string>(x, string.Join('.', Parent._internalName, typeof(Ability).Name.FirstLower(), GetType().Name.FirstLower(), "text", x.ToString().FirstLower()))).Where(x => Localization.strings.ContainsKey(x.Value)).ToDictionary();
             // Goodbye horrid monstrosity... you were good, son, real good... maybe even the best.
             //return Enum.GetValues(typeof(TextTypes)).Cast<object>().ToList().FindAll(x => Localization.strings.ContainsKey(string.Join('.', string.Join('.', Parent._internalName, typeof(Ability).Name.camelCase(), GetType().Name.camelCase(), "text"), x.ToString().camelCase()))).Select<object, KeyValuePair<TextTypes, string>>(x => new((TextTypes)x, string.Join('.', string.Join('.', Parent._internalName, typeof(Ability).Name.camelCase(), GetType().Name.camelCase(), "text"), x.ToString().camelCase()))).ToDictionary();
         }
@@ -114,6 +114,9 @@ namespace FrogBattle.Classes
             }))
             {
                 target.AddEffect(effect.AppliedEffect);
+                // Ability buff/debuff application text
+                if (FlavourText().TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, target, effect.AppliedEffect);
+                else AddText(Generic.ApplyEffect, Parent, target, effect.AppliedEffect);
                 return true;
             }
             return false;
@@ -143,13 +146,24 @@ namespace FrogBattle.Classes
         }
         /// <summary>
         /// Attaches a <see cref="Pools.Mana"/> amount condition, its corresponding cost, and energy generation. Percentage configurable.
+        /// The amount of energy restored has a flat 10 added to it.
         /// </summary>
-        /// <param name="cost"></param>
-        /// <returns></returns>
-        protected Ability WithGenericManaCost(double amount, double energyGenPercent = 0.2)
+        /// <param name="amount">Base amount of Mana that this ability requires.</param>
+        /// <param name="energyGenPercent">The percentage of base mana to gain in energy.</param>
+        /// <returns>This.</returns>
+        protected Ability WithGenericManaCost(double amount, double energyGenPercent = 0.4)
         {
             var cost = new PoolAmountCondition(this, amount, Pools.Mana, Operators.Additive);
-            return WithCondition(cost).WithCost(cost.GetCost()).WithReward(new Reward(Parent, Parent, amount * energyGenPercent, Pools.Energy, Operators.Additive));
+            return WithGenericCost(cost).WithReward(new Reward(Parent, Parent, amount * energyGenPercent + 10, Pools.Energy, Operators.Additive));
+        }
+        /// <summary>
+        /// Attaches an <see cref="Pools.Energy"/> amount condition and cost corresponding to MaxEnergy.
+        /// </summary>
+        /// <returns>This.</returns>
+        protected Ability WithBurstCost()
+        {
+            var cost = new PoolAmountCondition(this, Parent.GetStatVersus(Stats.MaxEnergy, Target), Pools.Energy, Operators.Additive);
+            return WithGenericCost(cost);
         }
 
         internal abstract class Condition(Ability parent)
@@ -222,23 +236,32 @@ namespace FrogBattle.Classes
         }
     }
     // oh god
-    internal record class AttackHelper : IAttack, IAppliesEffect
+    internal record class AttackHelper(Character Parent, Character Target, AttackInfo AttackInfo, EffectInfo[] EffectInfos) : IAttack, IAppliesEffect
     {
-        public AttackHelper(IAttack src, double falloff = 0) : this(src.Parent, src.Target, src.AttackInfo with { Ratio = src.AttackInfo.Ratio - falloff}, src is IAppliesEffect ef ? ef.EffectInfos : null) { }
-        public AttackHelper(Character parent, Character target, AttackInfo attackInfo, EffectInfo[] effectInfo)
-        {
-            Parent = parent;
-            Target = target;
-            AttackInfo = attackInfo;
-            EffectInfos = effectInfo;
-        }
-        public Character Parent { get; init; }
-        public Character Target { get; init; }
-        public AttackInfo AttackInfo { get; init; }
-        public EffectInfo[] EffectInfos { get; init; }
+        public AttackHelper(IAttack src, double falloff = 0) : this(src.Parent, src.Target, src.AttackInfo with { Ratio = Math.Max(0, src.AttackInfo.Ratio - falloff)}, src is IAppliesEffect ef ? ef.EffectInfos : null) { }
         private bool IsHit()
         {
             return AttackInfo.HitRate == null || BattleManager.RNG < AttackInfo.HitRate + Parent.GetStatVersus(Stats.HitRateBonus, Target) - Target.GetStatVersus(Stats.Dex, Parent) / 100;
+        }
+        protected void AddText(string key, params object[] args)
+        {
+            Parent.ParentBattle.BattleText.AppendLine(Localization.Translate(key, args));
+        }
+        private IEnumerator<StatusEffect> ApplyEffects()
+        {
+            if (Target == null) yield break;
+            if (EffectInfos == null) yield break;
+            foreach (var effect in EffectInfos)
+            {
+                if (BattleManager.RNG < (effect.ChanceType switch
+                {
+                    ChanceTypes.Fixed => effect.Chance,
+                    // Base chance takes into account your EHR and the enemy's EffectRES
+                    ChanceTypes.Base => effect.Chance + Parent.GetStatVersus(Stats.EffectHitRate, Target) - Target.GetStatVersus(Stats.EffectRES, Parent),
+                    _ => throw new InvalidDataException($"Unknown chance type: {effect.ChanceType}")
+                })) yield return effect.AppliedEffect;
+            }
+            yield break;
         }
 
         /// <summary>
@@ -261,32 +284,26 @@ namespace FrogBattle.Classes
             }
             yield break;
         }
-    }
-
-    internal abstract class SingleTargetAttack(Character source, Character target, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos) : Ability(source, target, properties), IAttack, IAppliesEffect
-    {
-        public AttackInfo AttackInfo { get; } = attackInfo;
-        public EffectInfo[] EffectInfos { get; } = effectInfos ?? [];
-
-        private protected override bool Use()
+        /// <summary>
+        /// Uses private Init() to create and then apply a series of damages for the given target,
+        /// as well as add corresponding battle text and apply effects.
+        /// </summary>
+        /// <param name="text">Flavour text dictionary.</param>
+        /// <returns>Each instance of damage dealt.</returns>
+        public IEnumerator<Damage> FancyInit(Dictionary<TextTypes, string> text)
         {
-            // Get the lists for flavour text
-            var text = FlavourText();
-            // Ability launch text
-            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, Parent, Target);
+            // Make sure there's anyone to attack
+            if (Target == null) yield break;
             // Create attack helper instance
-            var helper = new AttackHelper(this);
-            var attack = helper.Init();
+            var attack = Init();
             // If there is no first element to the collection, means we missed without IHR, so it's over
             if (!attack.MoveNext())
             {
                 // Ability miss text
                 if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, Parent, Target);
                 else AddText(Generic.Miss, Parent, Target);
-                return false;
+                yield break;
             }
-            // Initialize final damage
-            double finalDamage = 0;
             // Index for displaying damage text
             int index = 0;
             // Check to make sure we hit anything
@@ -300,31 +317,54 @@ namespace FrogBattle.Classes
                     // Ability damage text
                     if (text.TryGetValue((TextTypes)(++index), out var damageKey)) AddText(damageKey, Parent, Target, attack.Current);
                     else AddText(Generic.Damage, Parent, Target, attack.Current);
-                    finalDamage += attack.Current.Take();
+                    // Pause only when we deal damage
+                    yield return attack.Current;
+                    attack.Current.Take();
                 }
                 else
                 {
-                    // Ability miss text
+                    // Ability miss text...?
                     if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, Parent, Target);
                     else AddText(Generic.Miss, Parent, Target);
                 }
             } while (attack.MoveNext());
             // If we missed everything, tough luck.
-            if (!hit) return false;
+            if (!hit) yield break;
             // Try to apply the effects to the target after dealing the damage, knowing we hit at least once
-            foreach (var item in EffectInfos)
+            var effects = ApplyEffects();
+            while (effects.MoveNext())
             {
-                if (ApplyEffect(Target, item))
-                {
-                    // Ability buff/debuff application text
-                    if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, Target, item.AppliedEffect);
-                    else AddText(Generic.ApplyEffect, Parent, Target, item.AppliedEffect);
-                }
+                Target.AddEffect(effects.Current);
+                // Ability buff/debuff application text
+                if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, Target, effects.Current);
+                else AddText(Generic.ApplyEffect, Parent, Target, effects.Current);
             }
+            yield break;
+        }
+    }
+
+    internal abstract class SingleTargetAttack(Character source, Character target, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos) : Ability(source, target, properties), IAttack, IAppliesEffect
+    {
+        public AttackInfo AttackInfo { get; } = attackInfo;
+        public EffectInfo[] EffectInfos { get; } = effectInfos ?? [];
+
+        private protected override bool Use()
+        {
+            // Get the list for flavour text
+            var text = FlavourText();
+            // Ability launch text
+            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, Parent, Target);
+            // Create attack helper instance
+            var helper = new AttackHelper(this);
+            var attack = helper.FancyInit(text);
+            // Abort if we miss the target
+            if (!attack.MoveNext()) return false;
+            // Calculate damage
+            double finalDamage = 0;
+            do { finalDamage += attack.Current.Amount; } while (attack.MoveNext());
             // Ability end text
             if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, Parent, Target, finalDamage);
             return true;
-            // dammit i need to solve text cause its too varied
         }
     }
 
@@ -335,105 +375,25 @@ namespace FrogBattle.Classes
         public EffectInfo[] EffectInfos { get; } = effectInfos ?? [];
         private protected override bool Use()
         {
-            // Get the lists for flavour text
+            // Get the list for flavour text
             var text = FlavourText();
             // Ability launch text
             if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, Parent, Target);
-
             double finalDamage = 0;
             // Create new attacks for the side targets with falloff
             var helperM = new AttackHelper(this);
             var helperR = new AttackHelper(this, Falloff) { Target = Target.RightTeammate };
             var helperL = new AttackHelper(this, Falloff) { Target = Target.LeftTeammate };
-            var middleAttack = helperM.Init();
-            var rightAttack = helperR.Init();
-            var leftAttack = helperL.Init();
-            // If there is no first element to the collection, means we missed without IHR, so it's over
-            // I made Blast attacks care about the middle target first and foremost, so that's the one whose miss is calculated.
-            if (!middleAttack.MoveNext())
-            {
-                // Ability miss text
-                if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, Parent, Target);
-                else AddText(Generic.Miss, Parent, Target);
-                return false;
-            }
-            // Manually move the other two because yknow. Lmao
+            var middleAttack = helperM.FancyInit(text);
+            var rightAttack = helperR.FancyInit(text);
+            var leftAttack = helperL.FancyInit(text);
+            // We care mainly about the middle target - miss that and we're cooked. Otherwise continue.
+            if (!middleAttack.MoveNext()) return false;
+            // Manually move the other two
             rightAttack.MoveNext();
             leftAttack.MoveNext();
-            // Index and checks
-            int index = 0;
-            var hitMid = false;
-            var hitLeft = false;
-            var hitRight = false;
-            do
-            {
-                // Practically start indexing from 1, for damage text
-                ++index;
-                if (middleAttack.Current != null)
-                {
-                    hitMid = true;
-                    // Ability damage text
-                    if (text.TryGetValue((TextTypes)index, out var damageKey)) AddText(damageKey, Parent, middleAttack.Current.Target, middleAttack.Current);
-                    else AddText(Generic.Damage, Parent, middleAttack.Current.Target, middleAttack.Current);
-                    finalDamage += middleAttack.Current.Take();
-                }
-                if (Target.RightTeammate != null && rightAttack.Current != null)
-                {
-                    hitRight = true;
-                    // Ability damage text
-                    if (text.TryGetValue((TextTypes)index, out var damageKey)) AddText(damageKey, Parent, rightAttack.Current.Target, rightAttack.Current);
-                    else AddText(Generic.Damage, Parent, rightAttack.Current.Target, rightAttack.Current);
-                    finalDamage += rightAttack.Current.Take();
-                }
-                if (Target.LeftTeammate != null && leftAttack.Current != null)
-                {
-                    hitLeft = true;
-                    // Ability damage text
-                    if (text.TryGetValue((TextTypes)index, out var damageKey)) AddText(damageKey, Parent, leftAttack.Current.Target, leftAttack.Current);
-                    else AddText(Generic.Damage, Parent, leftAttack.Current.Target, leftAttack.Current);
-                    finalDamage += leftAttack.Current.Take();
-                }
-                // Move through all lists of damage instances for targets at the same time (using | instead of || here to avoid shortcircuiting)
-            } while (middleAttack.MoveNext() | rightAttack.MoveNext() | leftAttack.MoveNext());
-            if (hitMid)
-            {
-                // Try to apply the effects to the target after dealing the damage, knowing we hit at least once
-                foreach (var item in EffectInfos)
-                {
-                    if (ApplyEffect(Target, item))
-                    {
-                        // Ability buff/debuff application text
-                        if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, Target, item.AppliedEffect);
-                        else AddText(Generic.ApplyEffect, Parent, Target, item.AppliedEffect);
-                    }
-                }
-            }
-            if (hitLeft)
-            {
-                // Try to apply the effects to the target after dealing the damage, knowing we hit at least once
-                foreach (var item in EffectInfos)
-                {
-                    if (ApplyEffect(Target.LeftTeammate, item))
-                    {
-                        // Ability buff/debuff application text
-                        if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, Target.LeftTeammate, item.AppliedEffect);
-                        else AddText(Generic.ApplyEffect, Parent, Target.LeftTeammate, item.AppliedEffect);
-                    }
-                }
-            }
-            if (hitRight)
-            {
-                // Try to apply the effects to the target after dealing the damage, knowing we hit at least once
-                foreach (var item in EffectInfos)
-                {
-                    if (ApplyEffect(Target.RightTeammate, item))
-                    {
-                        // Ability buff/debuff application text
-                        if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, Target.RightTeammate, item.AppliedEffect);
-                        else AddText(Generic.ApplyEffect, Parent, Target.RightTeammate, item.AppliedEffect);
-                    }
-                }
-            }
+            // Use | instead of || to avoid shortcircuiting and exhaust each branch at the same time while adding up their damages
+            do { finalDamage += (middleAttack.Current?.Amount ?? 0) + (rightAttack.Current?.Amount ?? 0) + (leftAttack.Current?.Amount ?? 0); } while (middleAttack.MoveNext() | leftAttack.MoveNext() | rightAttack.MoveNext());
             // Ability end text
             if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, Parent, Target, finalDamage);
             return true;
@@ -452,77 +412,33 @@ namespace FrogBattle.Classes
             // Get the lists for flavour text
             var text = FlavourText();
             // Ability launch text
-            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, Parent, Target);
-
-            double finalDamage = 0;
+            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, Parent, Target, Count);
+            // Create helper instance
             var helper = new AttackHelper(this);
-            for (int i = 0; i < Count; ++i)
+            // Initialise damage for testing whether we hit anything
+            double finalDamage = 0;
+            for (int i = 0; i < Count; i++)
             {
-                var attack = helper.Init();
-                // If there is no first element to the collection, means we missed without IHR, so we skip to the next bounce
-                if (!attack.MoveNext())
-                {
-                    // Ability miss text
-                    if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, Parent, attack.Current.Target);
-                    else AddText(Generic.Miss, Parent, attack.Current.Target);
-                    continue; // Changing from continue; to break; here is a simple way to prevent misses from bouncing again.
-                }
-                // Index for displaying damage text
-                int index = 0;
-                // Hit check
-                var hit = false;
-                // Use do-while so we can freely check the first element for a miss. Perfect!
-                do
-                {
-                    if (attack.Current != null)
-                    {
-                        hit = true;
-                        // Ability damage text
-                        if (text.TryGetValue((TextTypes)(++index), out var damageKey)) AddText(damageKey, Parent, attack.Current.Target, attack.Current);
-                        else AddText(Generic.Damage, Parent, attack.Current.Target, attack.Current);
-                        finalDamage += attack.Current.Take();
-                    }
-                    // No miss text here because it would clog too much. If there were misses when you cast the ability,
-                    // on each bounce, AND on each damage instance of each bounce, that would be too many.
-                } while (attack.MoveNext());
-                // Apply effects
-                if (hit)
-                {
-                    // Try to apply the effects to the target after dealing the damage, knowing we hit at least once
-                    foreach (var item in EffectInfos)
-                    {
-                        if (ApplyEffect(helper.Target, item))
-                        {
-                            // Ability buff/debuff application text
-                            if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, helper.Target, item.AppliedEffect);
-                            else AddText(Generic.ApplyEffect, Parent, helper.Target, item.AppliedEffect);
-                        }
-                    }
-                }
+                var attack = helper.FancyInit(text);
+                // Skip if we miss (use break; to end bounces on miss)
+                if (!attack.MoveNext()) continue;
+                // Add up damage
+                do { finalDamage += attack.Current.Amount; } while (attack.MoveNext());
+                // Move to random target
                 helper = helper with { Target = Targets.OrderBy(x => BattleManager.RNG).First() };
             }
-            // Check whether we hit anybody
-            if (finalDamage != 0)
-            {
-                // Ability end text
-                if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, Parent, Target, finalDamage);
-                return true;
-            }
-            else
-            {
-                // Ability miss text
-                if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, Parent, Target);
-                else AddText(Generic.Miss, Parent, Target);
-                return false;
-            }
+            if (finalDamage == 0) return false;
+            // Ability end text
+            if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, Parent, Target);
+            return true;
         }
     }
 
     internal abstract class AoEAttack(Character source, Character mainTarget, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos) : Ability(source, mainTarget, properties), IAttack, IAppliesEffect
     {
-        public List<Character> Targets => Target.Team;
         public AttackInfo AttackInfo { get; } = attackInfo;
         public EffectInfo[] EffectInfos { get; } = effectInfos ?? [];
+        public List<Character> Targets => Target.Team;
 
         private protected override bool Use()
         {
@@ -530,58 +446,17 @@ namespace FrogBattle.Classes
             var text = FlavourText();
             // Ability launch text
             if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, Parent, Target);
-            double finalDamage = 0;
+            // Create attack helper instances for every target
             var attacks = new List<IEnumerator<Damage>>();
             var helpers = new List<AttackHelper>();
-            foreach (var character in Targets)
+            foreach (var item in Targets)
             {
-                helpers.Add(new AttackHelper(this) with { Target = character });
-                attacks.Add(helpers.Last().Init());
+                helpers.Add(new(this) { Target = item });
+                attacks.Add(helpers.Last().FancyInit(text));
             }
-            // If there is no first element to the collection, means we missed without IHR, so it's over for that enemy
-            foreach (var attack in attacks)
-            {
-                if (!attack.MoveNext())
-                {
-                    // Ability miss text
-                    if (text.TryGetValue(TextTypes.Miss, out var missKey)) AddText(missKey, Parent, helpers[attacks.IndexOf(attack)].Target);
-                    else AddText(Generic.Miss, Parent, helpers[attacks.IndexOf(attack)].Target);
-                    // Could do something here to clear the attacks list tbh. Micro optimisation though. Not worth my motivation.
-                }
-            }
-            // Index for displaying damage text
-            int index = 0;
-            // Funnier hit check
-            var hit = new List<Character>();
-            // Use do-while so we can freely check the first elements for a miss. Perfect!
-            do
-            {
-                foreach (var attack in attacks)
-                {
-                    if (attack.Current != null)
-                    {
-                        hit.Add(attack.Current.Target);
-                        // Ability damage text
-                        if (text.TryGetValue((TextTypes)(++index), out var damageKey)) AddText(damageKey, Parent, attack.Current.Target, attack.Current);
-                        else AddText(Generic.Damage, Parent, attack.Current.Target, attack.Current);
-                        finalDamage += attack.Current.Take();
-                    }
-                }
-                // Iterate while there's still damage instances to be done to at least one enemy.
-            } while (attacks.Select(x => x.MoveNext()).Any(x => x));
-            // Apply effects in a funny way
-            foreach (var target in hit)
-            {
-                foreach (var item in EffectInfos)
-                {
-                    if (ApplyEffect(target, item))
-                    {
-                        // Ability buff/debuff application text
-                        if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, target, item.AppliedEffect);
-                        else AddText(Generic.ApplyEffect, Parent, target, item.AppliedEffect);
-                    }
-                }
-            }
+            double finalDamage = 0;
+            do { finalDamage += attacks.Where(x => x.Current != null).Sum(x => x.Current.Amount); } while (attacks.Select(x => x.MoveNext()).Any(x => x));
+            if (finalDamage == 0) return false;
             // Ability end text
             if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, Parent, Target, finalDamage);
             return true;

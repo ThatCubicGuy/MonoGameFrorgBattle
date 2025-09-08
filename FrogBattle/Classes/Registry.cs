@@ -17,12 +17,12 @@ namespace FrogBattle.Classes
                 { Stats.MaxHp, 400000 },
                 { Stats.MaxMana, 100 },
                 { Stats.MaxEnergy, 120 },
-                { Stats.Atk, 1000 },
-                { Stats.Def, 300 },
+                { Stats.Atk, 4000 },
+                { Stats.Def, 800 },
                 { Stats.Spd, 100 },
                 { Stats.Dex, 0 },
                 { Stats.CritRate, 0.10 },
-                { Stats.CritDamageBonus, 0.50 },
+                { Stats.CritDamage, 0.50 },
                 { Stats.HitRateBonus, 0 },
                 { Stats.EffectHitRate, 1 },
                 { Stats.EffectRES, 0 },
@@ -96,7 +96,7 @@ namespace FrogBattle.Classes
                 // Only way I could find to override lmao
                 init => AddEffect(new DamageOverTime(this, value, Operators.Additive, DoTProps) { Type = DoTTypes.Bleed });
             }
-            public Bleed(Character source, Character target) : base(source, target, 2, 10, DoTFlags)
+            public Bleed(Character source, Character target) : base(source, target, 3, 10, DoTFlags)
             {
                 AddEffect(new DamageOverTime(this, Amount, Operators.Additive, DoTProps) { Type = DoTTypes.Bleed });
                 Name = "Bleed";
@@ -107,7 +107,7 @@ namespace FrogBattle.Classes
             public double Amount
             {
                 // Default
-                get => 6000;
+                get => 25000 * (BattleManager.RNG / 5 + 0.9);
                 // Only way I could find to override lmao
                 init => AddEffect(new DamageOverTime(this, value, Operators.Additive, DoTProps) { Type = DoTTypes.Bleed });
             }
