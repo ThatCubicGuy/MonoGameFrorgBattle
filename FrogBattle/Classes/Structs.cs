@@ -9,9 +9,9 @@ namespace FrogBattle.Classes
     /// <summary>
     /// Some generic text for various common fighter actions.
     /// </summary>
-    internal struct Generic
+    internal readonly struct Generic
     {
-        private static string Base => "character.generic.";
+        private const string Base = "character.generic.";
         public static string Skip => Base + "skip";
         public static string Miss => Base + "miss";
         public static string Dodge => Base + "dodge";

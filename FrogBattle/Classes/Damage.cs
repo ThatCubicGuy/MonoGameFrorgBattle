@@ -18,7 +18,7 @@ namespace FrogBattle.Classes
         /// <param name="target">Character to which this damage is going to be applied.</param>
         /// <param name="amount">The amount of damage, pre-calculations. Usually ratio * scalar.</param>
         /// <param name="info">Damage properties like type, source, crit, crit damage, defense ignore, and type res pen.</param>
-        public Damage(Character source, Character target, double amount, DamageInfo info)
+        public Damage(IDamageSource source, IDamageable target, double amount, DamageInfo info)
         {
             Source = source;
             Target = target;
@@ -39,35 +39,44 @@ namespace FrogBattle.Classes
             {
                 var total = baseAmount;
                 // Outgoing bonuses
-                if (Source != null)
+                if (Source is Character sc)
                 {
-                    total += total * (Source.GetDamageTypeBonus(Info.Type, Target) + Source.GetDamageSourceBonus(Info.Source, Target));
-                    total += Crit ? total * Source.GetStatVersus(Stats.CritDamage, Target) : 0;
-                    total += total * Source.GetDamageBonus(Target);
+                    total += total * (sc.GetDamageTypeBonus(Info.Type, Target as Character) + sc.GetDamageSourceBonus(Info.Source, Target as Character));
+                    total += Crit ? total * sc.GetStatVersus(Stats.CritDamage, Target as Character) : 0;
+                    total += total * sc.GetDamageBonus(Target as Character);
                 }
                 // Incoming bonuses
-                if (Target != null)
+                if (Target is Character tg)
                 {
-                    total -= total * (Target.GetDamageTypeRES(Info.Type, Source) * (1 - Info.TypeResPen) + Target.GetDamageSourceRES(Info.Source, Target));
-                    total -= Target.GetStatVersus(Stats.Def, Source) * (1 - Info.DefenseIgnore);
-                    total -= total * Target.GetDamageRES(Source);
+                    total -= total * (tg.GetDamageTypeRES(Info.Type, Source as Character) * Math.Max(0, 1 - Info.TypeResPen) + tg.GetDamageSourceRES(Info.Source, Source as Character));
+                    total -= tg.GetStatVersus(Stats.Def, Source as Character) * Math.Max(0, 1 - Info.DefenseIgnore);
+                    total -= total * tg.GetDamageRES(Source as Character);
                 }
                 return total;
             }
         }
-        public Character Source { get; }
-        public Character Target { get; }
+        public IDamageSource Source { get; }
+        public IDamageable Target { get; }
         public DamageInfo Info { get; }
         public bool Crit { get; }
-        public DamageSnapshot GetSnapshot(double ratio) => new(Amount * ratio, Info, Crit, Source, Target);
+        public Snapshot GetSnapshot(double ratio) => new(Amount * ratio, Info, Crit, Source, Target);
         public double Take(double ratio = 1)
         {
             // ?
             var snapshot = GetSnapshot(ratio);
-            Target.TakeDamage(this, ratio);
+            Source.DealDamage(snapshot);
+            Target.TakeDamage(snapshot);
             return snapshot.Amount;
         }
         public Damage Clone() => MemberwiseClone() as Damage;
-        public record DamageSnapshot(double Amount, DamageInfo Info, bool IsCrit, Character Source = null, Character Target = null);
+        public record Snapshot(double Amount, DamageInfo Info, bool IsCrit, IDamageSource Source = null, IDamageable Target = null)
+        {
+            public void Take(double ratio = 1) => Target.TakeDamage(this with { Amount = Amount * ratio });
+        }
+        public static readonly Damage Missed = new MissedDamage();
+        public sealed class MissedDamage : Damage
+        {
+            public MissedDamage() : base(null, null, 0, null) { }
+        }
     }
 }

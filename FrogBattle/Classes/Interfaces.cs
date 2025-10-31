@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
@@ -27,10 +26,59 @@ namespace FrogBattle.Classes
         Character Target { get; }
     }
 
+    internal interface IHasStats
+    {
+
+    }
+
+    internal interface IDamageable
+    {
+        double Hp { get; }
+        void TakeDamage(Damage.Snapshot damage);
+        event EventHandler<Damage.Snapshot> DamageTaken;  // FINALLY I UNDERSTAND HOW THIS PMO SHIT WORKS
+    }
+    
+    internal interface IDamageSource
+    {
+        bool IsCrit(IDamageable target);
+        void DealDamage(Damage.Snapshot damage);
+        event EventHandler<Damage.Snapshot> DamageDealt;
+    }
+
+    internal interface ICanHaveActives
+    {
+        List<StatusEffect> ActiveEffects { get; }
+    }
+
+    internal interface ICanHavePassives
+    {
+        List<PassiveEffect> PassiveEffects { get; }
+    }
+
+    internal interface ISupportsEffects : ICanHaveActives, ICanHavePassives;
+
     internal interface IAttack : IHasTarget
     {
         AttackInfo AttackInfo { get; }
     }
+
+    internal interface ISubeffect
+    {
+        IAttributeModifier Parent { get; init; }
+        object GetKey();
+    }
+
+    internal interface IMutableEffect : ISubeffect
+    {
+        double Amount { get; set; }
+    }
+
+    internal interface IEvent
+    {
+        static abstract void Event(object sender, Damage.Snapshot e);
+    }
+
+    internal interface ITrigger;
 
     internal interface IHealing : IHasTarget
     {

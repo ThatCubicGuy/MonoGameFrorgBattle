@@ -67,7 +67,7 @@ namespace FrogBattle
                 Exit();
             if (Keyboard.GetState().IsKeyDown(Keys.Space))
                 Exit();
-            if (Keyboard.GetState().IsKeyDown(Keys.F4))
+            if (Keyboard.GetState().IsKeyDown(Keys.F4)) ;
                 // how tf do i fullscreen
 
             // TODO: Add your update logic here

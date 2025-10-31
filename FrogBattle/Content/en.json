@@ -2,7 +2,7 @@
     "language.name": "English",
 
     "damage.source.none": null,
-    "damage.source.attack": "Direct aAttack",
+    "damage.source.attack": "Direct Attack",
     "damage.source.additional": "Additional Damage",
     "damage.source.followUp": "Follow-Up",
     "damage.source.damageOverTime": "Damage Over Time",
@@ -68,45 +68,63 @@
     "pools.barrier": "Barrier",
 
     "conditions.missing.generic": "Not enough {0}!",
+    "conditions.tooMuch.generic": "Too much {0}!",
 
-    "character.generic.skip": "{0:N} skip{0:S} {0:P2} turn and receive{0:S} {1:F0} mana!",
+    "character.generic.skip": "{0:N} skip{0:vS} {0:P2} turn and receive{0:vS} {1:F0} mana!",
     "character.generic.miss": "{0:N} missed {1:N}!",
     "character.generic.dodge": "{1:N} dodged the attack!",
     "character.generic.damage": "{1:N} took {2:atc} damage!",
-    "character.generic.stun": "{0:N} is stunned and cannot act!",
+    "character.generic.stun": "{0:N} {0:vi} stunned and cannot act!",
     "character.generic.applyEffect": "{1:N} is afflicted with {2:xt}!",
-    "character.generic.effectRES": "{1:N} resisted the effect!",
-    "character.generic.dot": "{0:N} also take{0:S} {1:F0} damage from DoT!",
+    "character.generic.effectRES": "{1:N} resist{1:vS} the effect!",
+    "character.generic.dot": "{0:N} also take{0:vS} {1:F0} damage from DoT!",
 
     "character.snake.ability.throwGrenade.name": "Throw grenade",
-    "character.snake.ability.throwGrenade.text.start": "{0:N} throw{0:S} a grenade at {1:N}!",
+    "character.snake.ability.throwGrenade.text.start": "{0:N} throw{0:vS} a grenade at {1:N}!",
     "character.snake.ability.throwGrenade.text.damage1": "The grenade hits {1:N}'s head and explodes right next to {1:P2} face, dealing {2:xs}!",
 
+    "character.snake.ability.clusterLauncher.name": "Cluster Grenade Launcher",
+    "character.snake.ability.clusterLauncher.text.start": "{0:N} read{0:vy} {0:P2} grenade launcher!",
+    "character.snake.ability.clusterGrenade.text.damage1": "{1:N} {1:vi} hit by a CLUSTER GRENADE which explodes for {2:xs} and splits into 5 little grenades, which also explode!",
+    "character.snake.ability.clusterGrenade.text.end": "{1:N} {1:vh} taken a total of {2:F0} damage from the grenades!",
+
+    "character.snake.ability.mortarVolley.name": "Mortar Volley",
+    "character.snake.ability.mortarVolley.text.start": "{0:N} set{0:vs} up some MORTARS!",
+    "character.snake.ability.mortarShot.text.damage1": "{1:N} {1:vi} hit by a MORTAR SHELL for {2:xs}!",
+    "character.snake.ability.mortarShot.text.end": "{1:N} {1:vh} taken a total of {2:F0} damage from the mortars!",
+
+    "character.snake.ability.upKick.name": "Up Kick",
+    "character.snake.ability.upKick.text.damage1": "{0:N} fiercely kicks his leg upwards, right into {1:N}'s jaw, dealing {2:xs} damage!",
+
     "character.rexulti.ability.pathetic.name": "Pathetic",
-    "character.rexulti.ability.pathetic.text.start": "{0:N} smack{0:S} {1:N} over {1:P2} head with {0:P2} sword, without bothering to unsheathe it!",
-    "character.rexulti.ability.pathetic.text.applyEffect": "{1:N} also start{1:S} bleeding for {2:xe}!",
+    "character.rexulti.ability.pathetic.text.start": "{0:N} smack{0:vS} {1:N} over {1:P2} head with {0:P2} sword, without bothering to unsheathe it!",
+    "character.rexulti.ability.pathetic.text.applyEffect": "{1:N} also start{1:vS} bleeding for {2:xe}!",
 
     "character.rexulti.ability.shadowFlare.name": "Shadow Flare",
-    "character.rexulti.ability.shadowFlare.text.start": "{0:N} send{0:S} out {2} bursts of energy that surround {1:N}!",
+    "character.rexulti.ability.shadowFlare.text.start": "{0:N} send{0:vS} out {2} bursts of energy that surround {1:N}!",
 
     "character.rexulti.ability.sacrifice.name": "Sacrifice",
-    "character.rexulti.ability.sacrifice.text.start": "{0:N} stab{0:S} {0:P4} with a knife! What? Why would you do that? {1:N} is baffled!",
-    "character.rexulti.ability.sacrifice.text.applyEffect": "But {0:N} gain{0:S} a {2:xn}!",
+    "character.rexulti.ability.sacrifice.text.start": "{0:N} stab{0:vS} {0:P4} with a knife! What? Why would you do that? {1:N} {1:vi} baffled!",
+    "character.rexulti.ability.sacrifice.text.applyEffect": "But {0:N} gain{0:vS} a {2:xn}!",
 
     "character.rexulti.ability.memory.name": "I Will Never Be A Memory",
-    "character.rexulti.ability.memory.text.damage1": "{0:N} trap{0:S} {1:N} in PURGATORY! {0:uP2} pet feasts on {1:N} for {2:xs}, which also causes {1:P1} to take double damage from {1:P2} every applied DoT!",
+    "character.rexulti.ability.memory.text.damage1": "{0:N} trap{0:vS} {1:N} in PURGATORY! {0:uP2} pet feasts on {1:N} for {2:xs}, which also causes {1:P1} to take double damage from {1:P2} every applied DoT!",
 
     "character.rexulti.ability.thisEndsNow.name": "This Ends Now",
-    "character.rexulti.ability.thisEndsNow.text.start": "{0:N} fire{0:S} a SILVER BULLET directly towards {1:N}'s chest!",
+    "character.rexulti.ability.thisEndsNow.text.start": "{0:N} fire{0:vS} a SILVER BULLET directly towards {1:N}'s chest!",
     "character.rexulti.ability.thisEndsNow.text.damage1": "{0:N}'s heart is pierced by the bullet for {2:xs}!",
 
     "character.rexulti.ability.devastate.name": "I aim to devastate",
-    "character.rexulti.ability.devastate.text.start": "{0:N} is DONE messing around and FULLY UNLEASH{0:cE} {0:cP2} BLADE!",
-    "character.rexulti.ability.devastate.text.damage1": "{0:N} swing{0:S} menacingly!",
-    "character.rexulti.ability.devastateSlash1.text.damage1": "{0:N} slash{0:E} {1:N} for {2:xs}!",
-    "character.rexulti.ability.devastateSlash2.text.damage1": "{0:N} slash{0:E} {1:N} for {2:xs}!",
+    "character.rexulti.ability.devastate.text.start": "{0:N} is DONE messing around and FULLY UNLEASH{0:cvE} {0:cP2} BLADE!",
+    "character.rexulti.ability.devastate.text.damage1": "{0:N} swing{0:vS} menacingly!",
+    "character.rexulti.ability.devastateSlash1.text.damage1": "{0:N} slash{0:vE} {1:N} for {2:xs}!",
+    "character.rexulti.ability.devastateSlash2.text.damage1": "{0:N} slash{0:vE} {1:N} for {2:xs}!",
     "character.rexulti.ability.devastateSlash2.text.applyEffect": "{0:N} also inflicted {1:N} with {2:xo}!",
-    "character.rexulti.ability.devastateSlash3.text.damage1": "{0:N} slash{0:E} {1:N} for {2:atc} damage!",
-    "character.rexulti.ability.devastateSlash3.text.applyEffect": "{0:N} also inflicted {1:N} with {2:xt}!",
-    "character.rexulti.ability.devastate.text.end": "{0:N} dealt a total of {2:F0} damage to {1:N}!"
+    "character.rexulti.ability.devastateSlash3.text.damage1": "{0:N} slash{0:vE} {1:N} for {2:atc} damage!",
+    "character.rexulti.ability.devastateSlash3.text.applyEffect": "{0:N} also inflict{0:vS} {1:N} with {2:xt}!",
+    "character.rexulti.ability.devastate.text.end": "{0:N} dealt a total of {2:F0} damage to {1:N}!",
+
+    "character.rexultiPhase2.ability.kneel.name": "Now, kneel before me, peasants",
+    "character.rexultiPhase2.ability.kneel.text.start": "{0:N} embod{0:vy} the demon of PRIDE! {1:N} {1:vh} to suffer through a terrible regime!",
+    "character.rexultiPhase2.ability.kneel.text.end": "{1:N} take{1:vs} a total of {2:F0} damage!"
 }

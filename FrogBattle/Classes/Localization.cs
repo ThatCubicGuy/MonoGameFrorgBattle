@@ -19,8 +19,7 @@ namespace FrogBattle.Classes
         {
             if (!strings.TryGetValue(key, out var template))
                 return key;
-            //Console.WriteLine(template);
-            //foreach (var item in args) Console.WriteLine(item);
+
             return string.Format(GameFormatProvider.Instance, template, args);
         }
         public static string Translate(KeyValuePair<string, object[]> kvp, params object[] args)

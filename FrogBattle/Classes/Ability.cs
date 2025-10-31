@@ -1,19 +1,13 @@
-﻿using Microsoft.Xna.Framework.Graphics;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
     // rewrite #7 gazillion lmfao
-    internal abstract class Ability : IHasTarget
+    internal abstract class Ability : IHasTarget, ITrigger
     {
         public Ability(Character parent, Character target, AbilityInfo props)
         {
@@ -26,7 +20,7 @@ namespace FrogBattle.Classes
         public AbilityInfo Properties { get; init; }
         public Dictionary<Pools, Cost> Costs { get; } = [];
         public Dictionary<Pools, Reward> Rewards { get; } = [];
-        public Dictionary<object, Ability.Condition> Conditions { get; } = [];
+        public Dictionary<object, Requirement> Requirements { get; } = [];
         /// <summary>
         /// Tries using the ability. If conditions are not met returns false.
         /// Whether the ability was used successfully or missed does not influence the return value.
@@ -34,15 +28,15 @@ namespace FrogBattle.Classes
         /// <returns>True if the turn can continue, false otherwise.</returns>
         public bool TryUse()
         {
-            foreach (var item in Conditions)
+            foreach (var item in Requirements)
             {
                 if (!item.Value.Check())
                 {
                     AddText("conditions.missing.generic", Localization.Translate(item.Value switch
                     {
-                        StatThresholdCondition st => "stats." + st.Stat.ToString().FirstLower(),
-                        PoolAmountCondition pl => "pools." + pl.Pool.ToString().FirstLower(),
-                        Condition cn => "generic"
+                        StatThresholdRequirement st => "stats." + st.Stat.ToString().FirstLower(),
+                        PoolAmountRequirement pl => "pools." + pl.Pool.ToString().FirstLower(),
+                        Requirement cn => "generic"
                     }));
                     return false;
                 }
@@ -100,27 +94,20 @@ namespace FrogBattle.Classes
             Parent.ParentBattle.BattleText.AppendLine(Localization.Translate(key, args));
         }
 
-        public bool ApplyEffect(Character target, EffectInfo effect)
+        public bool ApplyEffect<AppliedEffect>(Character target, EffectInfo<AppliedEffect> effect) where AppliedEffect : StatusEffect, new()
         {
-            if (this is not IAppliesEffect ab) throw new InvalidOperationException("Cannot call ApplyEffect from an ability that does not implement IAppliesEffect.");
-            if (effect == null) return false;
-            if (target == null) return false;
-            if (BattleManager.RNG < (effect.ChanceType switch
+            var appliedEffect = effect.Apply(Parent, target);
+            if (appliedEffect is not null)
             {
-                ChanceTypes.Fixed => effect.Chance,
-                // Base chance takes into account your EHR and the enemy's EffectRES
-                ChanceTypes.Base => effect.Chance + ab.Parent.GetStatVersus(Stats.EffectHitRate, target) - target.GetStatVersus(Stats.EffectRES, ab.Parent),
-                _ => throw new InvalidDataException($"Unknown chance type: {effect.ChanceType}")
-            }))
-            {
-                target.AddEffect(effect.AppliedEffect);
                 // Ability buff/debuff application text
-                if (FlavourText().TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, target, effect.AppliedEffect);
-                else AddText(Generic.ApplyEffect, Parent, target, effect.AppliedEffect);
+                if (FlavourText().TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, target, appliedEffect);
+                else AddText(Generic.ApplyEffect, Parent, target, appliedEffect);
                 return true;
             }
             return false;
         }
+        #region Cost Methods
+        
         public Ability WithCost(Cost cost)
         {
             Costs[cost.Pool] = cost;
@@ -131,18 +118,18 @@ namespace FrogBattle.Classes
             Rewards[reward.Pool] = reward;
             return this;
         }
-        public Ability WithCondition(Ability.Condition condition)
+        public Ability WithRequirement(Requirement requirement)
         {
-            Conditions[condition.GetKey()] = condition;
+            Requirements[requirement.GetKey()] = requirement;
             return this;
         }
         /// <summary>
         /// Attaches a PoolAmount condition to the ability and its corresponding cost.
         /// </summary>
         /// <returns>This ability.</returns>
-        protected Ability WithGenericCost(PoolAmountCondition cost)
+        protected Ability WithGenericCost(PoolAmountRequirement cost)
         {
-            return WithCondition(cost).WithCost(cost.GetCost());
+            return WithRequirement(cost).WithCost(cost.GetCost());
         }
         /// <summary>
         /// Attaches a <see cref="Pools.Mana"/> amount condition, its corresponding cost, and energy generation. Percentage configurable.
@@ -153,8 +140,7 @@ namespace FrogBattle.Classes
         /// <returns>This.</returns>
         protected Ability WithGenericManaCost(double amount, double energyGenPercent = 0.4)
         {
-            var cost = new PoolAmountCondition(this, amount, Pools.Mana, Operators.Additive);
-            return WithGenericCost(cost).WithReward(new Reward(Parent, Parent, amount * energyGenPercent + 10, Pools.Energy, Operators.Additive));
+            return WithGenericCost(new PoolAmountRequirement(this, amount, Pools.Mana, Operators.AddValue)).WithReward(new Reward(Parent, Parent, amount * energyGenPercent + 10, Pools.Energy, Operators.AddValue));
         }
         /// <summary>
         /// Attaches an <see cref="Pools.Energy"/> amount condition and cost corresponding to MaxEnergy.
@@ -162,11 +148,21 @@ namespace FrogBattle.Classes
         /// <returns>This.</returns>
         protected Ability WithBurstCost()
         {
-            var cost = new PoolAmountCondition(this, Parent.GetStatVersus(Stats.MaxEnergy, Target), Pools.Energy, Operators.Additive);
+            var cost = new PoolAmountRequirement(this, Parent.GetStatVersus(Stats.MaxEnergy, Target), Pools.Energy, Operators.AddValue);
             return WithGenericCost(cost);
         }
 
-        internal abstract class Condition(Ability parent)
+        #endregion
+
+        #region Damage effects
+        protected virtual void DealtDamage(Damage dmg) { }
+        protected void HealOnDamage(Damage dmg, double ratio)
+        {
+            Parent.TakeHealing(new Healing(Parent, Parent, new(dmg.Amount)), ratio);
+        }
+        #endregion
+
+        internal abstract class Requirement(Ability parent)
         {
             public Ability Parent { get; } = parent;
             public Character ParentFighter => Parent.Parent;
@@ -176,11 +172,11 @@ namespace FrogBattle.Classes
         /// <summary>
         /// Check whether a stat is within an inclusive interval [Min, Max].
         /// </summary>
-        internal class StatThresholdCondition : Condition
+        internal class StatThresholdRequirement : Requirement
         {
             private readonly double? _min;
             private readonly double? _max;
-            public StatThresholdCondition(Ability parent, double? minAmount, double? maxAmount, Stats stat, Operators op) : base(parent)
+            public StatThresholdRequirement(Ability parent, double? minAmount, double? maxAmount, Stats stat, Operators op) : base(parent)
             {
                 if (minAmount == null && maxAmount == null) throw new ArgumentNullException(string.Join(", ", [nameof(minAmount), nameof(maxAmount)]), "Condition requires at least one bound.");
                 _min = minAmount;
@@ -201,12 +197,12 @@ namespace FrogBattle.Classes
         /// <summary>
         /// Checks whether a pool's value is above or equal to Amount.
         /// </summary>
-        internal class PoolAmountCondition : Condition
+        internal class PoolAmountRequirement : Requirement
         {
             private readonly double _amount;
-            public PoolAmountCondition(Ability parent, double amount, Pools pool, Operators op) : base(parent)
+            public PoolAmountRequirement(Ability parent, double amount, Pools pool, Operators op) : base(parent)
             {
-                if (op == Operators.Multiplicative && pool.Max() == Stats.None) throw new ArgumentException("Cannot have percentage conditions for pools that do not have a max value.", nameof(op));
+                if (op == Operators.MultiplyBase && pool.Max() == Stats.None) throw new ArgumentException("Cannot have percentage conditions for pools that do not have a max value.", nameof(op));
                 _amount = amount;
                 Pool = pool;
                 Op = op;
@@ -236,51 +232,44 @@ namespace FrogBattle.Classes
         }
     }
     // oh god
-    internal record class AttackHelper(Character Parent, Character Target, AttackInfo AttackInfo, EffectInfo[] EffectInfos) : IAttack, IAppliesEffect
+    internal abstract record class AbilityHelper(Character Parent, Character Target)
     {
-        public AttackHelper(IAttack src, double falloff = 0) : this(src.Parent, src.Target, src.AttackInfo with { Ratio = Math.Max(0, src.AttackInfo.Ratio - falloff)}, src is IAppliesEffect ef ? ef.EffectInfos : null) { }
-        private bool IsHit()
-        {
-            return AttackInfo.HitRate == null || BattleManager.RNG < AttackInfo.HitRate + Parent.GetStatVersus(Stats.HitRateBonus, Target) - Target.GetStatVersus(Stats.Dex, Parent) / 100;
-        }
         protected void AddText(string key, params object[] args)
         {
             Parent.ParentBattle.BattleText.AppendLine(Localization.Translate(key, args));
         }
+    }
+    internal record class AttackHelper(Character Parent, Character Target, AttackInfo AttackInfo, EffectInfo[] EffectInfos) : AbilityHelper(Parent, Target), IAttack, IAppliesEffect
+    {
+        public AttackHelper(IAttack src, double falloff = 0) : this(src.Parent, src.Target, src.AttackInfo with { Ratio = Math.Max(0, src.AttackInfo.Ratio - falloff) }, src is IAppliesEffect ef ? ef.EffectInfos : null) { }
         private IEnumerator<StatusEffect> ApplyEffects()
         {
             if (Target == null) yield break;
             if (EffectInfos == null) yield break;
             foreach (var effect in EffectInfos)
             {
-                if (BattleManager.RNG < (effect.ChanceType switch
-                {
-                    ChanceTypes.Fixed => effect.Chance,
-                    // Base chance takes into account your EHR and the enemy's EffectRES
-                    ChanceTypes.Base => effect.Chance + Parent.GetStatVersus(Stats.EffectHitRate, Target) - Target.GetStatVersus(Stats.EffectRES, Parent),
-                    _ => throw new InvalidDataException($"Unknown chance type: {effect.ChanceType}")
-                })) yield return effect.AppliedEffect;
+                yield return effect.Apply(Parent, Target);
             }
             yield break;
         }
-
+        private bool IsHit() => BattleManager.RNG < AttackInfo.HitRate + Parent.GetStatVersus(Stats.HitRateBonus, Target) - Target.GetStatVersus(Stats.Dex, Parent) / 100;
         /// <summary>
         /// Creates a series of damages for the given target.
         /// </summary>
         /// <returns>An enumerator. Advance </returns>
-        public IEnumerator<Damage> Init()
+        private IEnumerator<Damage> Init()
         {
             if (Target == null) yield break;
             if (!AttackInfo.IndependentHitRate && !IsHit()) yield break;
             if (AttackInfo.Split == null || AttackInfo.Split.Length == 0)
             {
-                yield return (!AttackInfo.IndependentHitRate || IsHit()) ? new Damage(Parent, Target, AttackInfo.Ratio * Parent.GetStatVersus(AttackInfo.Scalar, Target), AttackInfo.DamageInfo) : null;
+                yield return new Damage(Parent, Target, AttackInfo.Ratio * Parent.GetStatVersus(AttackInfo.Scalar, Target), AttackInfo.DamageInfo);
                 yield break;
             }
             long sum = AttackInfo.Split.Sum(x => x);
             foreach (var i in AttackInfo.Split)
             {
-                yield return (!AttackInfo.IndependentHitRate || IsHit()) ? new Damage(Parent, Target, AttackInfo.Ratio * Parent.GetStatVersus(AttackInfo.Scalar, Target) * i / sum, AttackInfo.DamageInfo) : null;
+                yield return (!AttackInfo.IndependentHitRate || IsHit()) ? new Damage(Parent, Target, AttackInfo.Ratio * Parent.GetStatVersus(AttackInfo.Scalar, Target) * i / sum, AttackInfo.DamageInfo) : Damage.Missed;
             }
             yield break;
         }
@@ -311,7 +300,7 @@ namespace FrogBattle.Classes
             // Use do-while so we can freely check the first element for a miss. Perfect!
             do
             {
-                if (attack.Current != null)
+                if (attack.Current != Damage.Missed)
                 {
                     hit = true;
                     // Ability damage text
@@ -334,15 +323,50 @@ namespace FrogBattle.Classes
             var effects = ApplyEffects();
             while (effects.MoveNext())
             {
-                Target.AddEffect(effects.Current);
-                // Ability buff/debuff application text
-                if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, Target, effects.Current);
-                else AddText(Generic.ApplyEffect, Parent, Target, effects.Current);
+                if (effects.Current is not null)
+                {
+                    Target.AddEffect(effects.Current);
+                    // Ability buff/debuff application text
+                    var displayEffect = Target.ActiveEffects.FirstOrDefault(x => x == effects.Current);
+                    if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, Target, displayEffect);
+                    else AddText(Generic.ApplyEffect, Parent, Target, displayEffect);
+                }
             }
             yield break;
         }
     }
-
+    internal record class EffectHelper(Character Parent, Character Target, EffectInfo[] EffectInfos) : AbilityHelper(Parent, Target), IAppliesEffect
+    {
+        public EffectHelper(IAppliesEffect src) : this(src.Parent, src.Target, src.EffectInfos) { }
+        private IEnumerator<StatusEffect> ApplyEffects()
+        {
+            if (Target == null) yield break;
+            if (EffectInfos == null) yield break;
+            foreach (var effect in EffectInfos)
+            {
+                yield return effect.Apply(Parent, Target);
+            }
+            yield break;
+        }
+        public IEnumerator<StatusEffect> Init(Dictionary<TextTypes, string> text)
+        {
+            // Try to apply the effects
+            var effects = ApplyEffects();
+            while (effects.MoveNext())
+            {
+                if (effects.Current is not null)
+                {
+                    Target.AddEffect(effects.Current);
+                    // Ability buff/debuff application text
+                    var displayEffect = Target.ActiveEffects.FirstOrDefault(x => x == effects.Current);
+                    if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, Target, displayEffect);
+                    else AddText(Generic.ApplyEffect, Parent, Target, displayEffect);
+                    yield return effects.Current;
+                }
+            }
+            yield break;
+        }
+    }
     internal abstract class SingleTargetAttack(Character source, Character target, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos) : Ability(source, target, properties), IAttack, IAppliesEffect
     {
         public AttackInfo AttackInfo { get; } = attackInfo;
@@ -361,7 +385,7 @@ namespace FrogBattle.Classes
             if (!attack.MoveNext()) return false;
             // Calculate damage
             double finalDamage = 0;
-            do { finalDamage += attack.Current.Amount; } while (attack.MoveNext());
+            do { DealtDamage(attack.Current); finalDamage += attack.Current.Amount; } while (attack.MoveNext());
             // Ability end text
             if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, Parent, Target, finalDamage);
             return true;
@@ -429,7 +453,7 @@ namespace FrogBattle.Classes
             }
             if (finalDamage == 0) return false;
             // Ability end text
-            if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, Parent, Target);
+            if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, Parent, Target, finalDamage);
             return true;
         }
     }
@@ -463,23 +487,22 @@ namespace FrogBattle.Classes
         }
     }
 
-    internal abstract class Buff(Character source, Character target, AbilityInfo properties, EffectInfo[] effectInfos) : Ability(source, target, properties), IAppliesEffect
+    internal abstract class ApplyEffectOn(Character source, Character target, AbilityInfo properties, EffectInfo[] effectInfos) : Ability(source, target, properties), IAppliesEffect
     {
         public EffectInfo[] EffectInfos { get; } = effectInfos;
         private protected override bool Use()
         {
+            // Get the list for flavour text
             var text = FlavourText();
             // Ability launch text
             if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, Parent, Target);
-            foreach (var item in EffectInfos)
-            {
-                if (ApplyEffect(Target, item))
-                {
-                    // Ability buff application text
-                    if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, Target, item.AppliedEffect);
-                    else AddText(Generic.ApplyEffect, Parent, Target, item.AppliedEffect);
-                }
-            }
+            // Create effect helper instance
+            var helper = new EffectHelper(this);
+            var effect = helper.Init(text);
+            // Effect application and flavour text are handled by the helper
+            do { } while (effect.MoveNext());
+            // Ability end text
+            if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, Parent, Target);
             return true;
         }
     }
@@ -490,28 +513,25 @@ namespace FrogBattle.Classes
         public List<Character> Targets { get => Target.Team; }
         private protected override bool Use()
         {
+            // Get the list for flavour text
             var text = FlavourText();
             // Ability launch text
             if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, Parent, Target);
-            foreach (var target in Target.Team)
+            foreach (var target in Targets)
             {
-                foreach (var item in EffectInfos)
-                {
-                    if (ApplyEffect(target, item))
-                    {
-                        // Ability buff application text
-                        if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, target, item.AppliedEffect);
-                        else AddText(Generic.ApplyEffect, Parent, target, item.AppliedEffect);
-                    }
-                }
+                // Create effect helper instance
+                var helper = new EffectHelper(this) { Target = target };
+                var effect = helper.Init(text);
+                // Effect application and flavour text are handled by the helper
+                do { } while (effect.MoveNext());
             }
             // Ability end text
-            if (text.TryGetValue(TextTypes.Start, out var endKey)) AddText(endKey, Parent, Target);
+            if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, Parent, Target);
             return true;
         }
     }
 
-    internal abstract class Heal(Character source, Character target, AbilityInfo properties, HealingInfo healingInfo, EffectInfo[] effectInfos) : Ability(source, target, properties), IHealing, IAppliesEffect
+    internal abstract class HealTarget(Character source, Character target, AbilityInfo properties, HealingInfo healingInfo, EffectInfo[] effectInfos) : Ability(source, target, properties), IHealing, IAppliesEffect
     {
         public HealingInfo HealingInfo { get; } = healingInfo;
         public EffectInfo[] EffectInfos { get; } = effectInfos ?? [];
@@ -525,15 +545,11 @@ namespace FrogBattle.Classes
             if (text.TryGetValue(TextTypes.Healing, out var healingKey)) AddText(healingKey, Parent, Target, healing);
             else AddText(Generic.Healing, Parent, Target, healing);
             double finalHealing = healing.Take();
-            foreach (var item in EffectInfos)
-            {
-                if (ApplyEffect(Target, item))
-                {
-                    // Ability buff application text
-                    if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, Target, item.AppliedEffect);
-                    else AddText(Generic.ApplyEffect, Parent, Target, item.AppliedEffect);
-                }
-            }
+            // Create effect helper instance
+            var helper = new EffectHelper(this);
+            var effect = helper.Init(text);
+            // Effect application and flavour text are handled by the helper
+            do { } while (effect.MoveNext());
             // Ability end text
             if (text.TryGetValue(TextTypes.Start, out var endKey)) AddText(endKey, Parent, Target, finalHealing);
             return true;
@@ -551,24 +567,36 @@ namespace FrogBattle.Classes
             // Ability launch text
             if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, Parent, Target);
             double finalHealing = 0;
-            foreach (var target in Target.Team)
+            foreach (var target in Targets)
             {
                 var healing = new Healing(Parent, target, HealingInfo);
                 if (text.TryGetValue(TextTypes.Healing, out var healingKey)) AddText(healingKey, Parent, Target, healing);
                 else AddText(Generic.Healing, Parent, Target, healing);
                 finalHealing = healing.Take();
-                foreach (var item in EffectInfos)
-                {
-                    if (ApplyEffect(target, item))
-                    {
-                        // Ability buff application text
-                        if (text.TryGetValue(TextTypes.ApplyEffect, out var effectKey)) AddText(effectKey, Parent, target, item.AppliedEffect);
-                        else AddText(Generic.ApplyEffect, Parent, target, item.AppliedEffect);
-                    }
-                }
+                // Create effect helper instance
+                var helper = new EffectHelper(this) { Target = target };
+                var effect = helper.Init(text);
+                // Effect application and flavour text are handled by the helper
+                do { } while (effect.MoveNext());
             }
             // Ability end text
             if (text.TryGetValue(TextTypes.Start, out var endKey)) AddText(endKey, Parent, Target, finalHealing);
+            return true;
+        }
+    }
+
+    internal abstract class FollowUpSetup(Character source, Character target, AbilityInfo properties, params EventHandler<Ability>[] bonusEffects) : Ability(source, target, properties)
+    {
+        public EventHandler<Ability>[] BonusEffects { get; } = bonusEffects;
+        private protected override bool Use()
+        {
+            // Create text
+            var text = FlavourText();
+            // Ability launch text
+            if (text.TryGetValue(TextTypes.Start, out var startKey)) AddText(startKey, Parent, Target);
+            foreach (var item in BonusEffects) Parent.AbilityLaunched += item;
+            // Ability end text
+            if (text.TryGetValue(TextTypes.End, out var endKey)) AddText(endKey, Parent, Target);
             return true;
         }
     }
@@ -577,7 +605,7 @@ namespace FrogBattle.Classes
     {
         public SkipTurn(Character source) : base(source, source, new())
         {
-            WithReward(new(source, source, 5, Pools.Mana, Operators.Additive));
+            WithReward(new(source, source, 5, Pools.Mana, Operators.AddValue));
         }
         private protected override bool Use()
         {

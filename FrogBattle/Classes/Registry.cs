@@ -1,16 +1,19 @@
 ﻿using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net.NetworkInformation;
-using System.Text;
-using System.Threading.Tasks;
-using static FrogBattle.Classes.Registry;
 
 namespace FrogBattle.Classes
 {
     internal static class Registry
     {
+        public readonly struct CommonPronouns
+        {
+            public static readonly Pronouns IT_ITS = new("it", "it", "its", "its", "itself");
+            public static readonly Pronouns HE_HIM = new("he", "him", "his", "his", "himself");
+            public static readonly Pronouns SHE_HER = new("she", "her", "her", "hers", "herself");
+            public static readonly Pronouns THEY_THEM = new("they", "them", "their", "theirs", "themself");
+            public static readonly Pronouns MULTIPLE = new("they", "them", "their", "theirs", "themselves", false);
+        }
         public static readonly FrozenDictionary<Stats, double> DefaultStats =
             new Dictionary<Stats, double>()
             {
@@ -74,78 +77,65 @@ namespace FrogBattle.Classes
                 { Scalars.Cringe, 100.00 }
             }
             .ToFrozenDictionary();
-        public static StatusEffect CommonDoT(DoTTypes type, Character source, Character target)
+        public static StatusEffect CommonDoT(DoTTypes type, Character source, Character target, int? amount = null)
         {
             return type switch
             {
-                DoTTypes.Bleed => new Bleed(source, target),
-                DoTTypes.Burn => new Burn(source, target),
-                DoTTypes.Shock => new Shock(source, target),
-                DoTTypes.WindShear => new WindShear(source, target),
+                DoTTypes.Bleed => new Bleed() { Source = source, Target = target, BleedAmount = amount }.Init(),
+                DoTTypes.Burn => new Burn() { Source = source, Target = target, BurnAmount = amount }.Init(),
+                DoTTypes.Shock => new Shock() { Source = source, Target = target, ShockAmount = amount }.Init(),
+                DoTTypes.WindShear => new WindShear() { Source = source, Target = target, ShearAmount = amount }.Init(),
                 _ => throw new ArgumentOutOfRangeException(nameof(type), $"Unknown DoT type: {type}")
             };
         }
         public static readonly StatusEffect.Flags DoTFlags = StatusEffect.Flags.StartTick | StatusEffect.Flags.Debuff;
-        public static readonly DamageInfo DoTProps = new(Source: DamageSources.DamageOverTime, CanCrit: false);
         public class Bleed : StatusEffect
         {
-            public double Amount
+            public Bleed() : base()
             {
-                // Default
-                get => 0.004 * Target.GetStatVersus(Stats.MaxHp, Source);
-                // Only way I could find to override lmao
-                init => AddEffect(new DamageOverTime(this, value, Operators.Additive, DoTProps) { Type = DoTTypes.Bleed });
-            }
-            public Bleed(Character source, Character target) : base(source, target, 3, 10, DoTFlags)
-            {
-                AddEffect(new DamageOverTime(this, Amount, Operators.Additive, DoTProps) { Type = DoTTypes.Bleed });
                 Name = "Bleed";
+                Turns = 3;
+                MaxStacks = 10;
+                Properties = DoTFlags;
             }
+            public double? BleedAmount { get; init; }
+            public override StatusEffect Init() => AddEffect(new DamageOverTime(BleedAmount ?? 0.004 * Target.GetStatVersus(Stats.MaxHp, Source), Operators.AddValue) { Type = DoTTypes.Bleed });
         }
         public class Burn : StatusEffect
         {
-            public double Amount
+            public Burn() : base()
             {
-                // Default
-                get => 25000 * (BattleManager.RNG / 5 + 0.9);
-                // Only way I could find to override lmao
-                init => AddEffect(new DamageOverTime(this, value, Operators.Additive, DoTProps) { Type = DoTTypes.Bleed });
-            }
-            public Burn(Character source, Character target) : base(source, target, 3, 1, DoTFlags)
-            {
-                AddEffect(new DamageOverTime(this, Amount, Operators.Additive, DoTProps) { Type = DoTTypes.Burn });
                 Name = "Burn";
+                Turns = 3;
+                MaxStacks = 1;
+                Properties = DoTFlags;
             }
+            public double? BurnAmount { get; init; }
+            public override StatusEffect Init() => AddEffect(new DamageOverTime(BurnAmount ?? 25000 * (BattleManager.RNG / 5 + 0.9), Operators.AddValue) { Type = DoTTypes.Burn });
         }
         public class Shock : StatusEffect
         {
-            public double Amount
+            public Shock() : base()
             {
-                // Default
-                get => 2.10 * Source.GetStatVersus(Stats.Atk, Target);
-                // Only way I could find to override lmao
-                init => AddEffect(new DamageOverTime(this, value, Operators.Additive, DoTProps) { Type = DoTTypes.Bleed });
-            }
-            public Shock(Character source, Character target) : base(source, target, 3, 1, DoTFlags)
-            {
-                AddEffect(new DamageOverTime(this, Amount, Operators.Additive, DoTProps) { Type = DoTTypes.Shock });
                 Name = "Shock";
+                Turns = 3;
+                MaxStacks = 1;
+                Properties = DoTFlags;
             }
+            public double? ShockAmount { get; init; }
+            public override StatusEffect Init() => AddEffect(new DamageOverTime(ShockAmount ?? 2.10 * Source.GetStatVersus(Stats.Atk, Target), Operators.AddValue) { Type = DoTTypes.Shock });
         }
         public class WindShear : StatusEffect
         {
-            public double Amount
+            public WindShear() : base()
             {
-                // Default
-                get => 0.65 * Source.GetStatVersus(Stats.Atk, Target);
-                // Only way I could find to override lmao
-                init => AddEffect(new DamageOverTime(this, value, Operators.Additive, DoTProps) { Type = DoTTypes.Bleed });
-            }
-            public WindShear(Character source, Character target) : base(source, target, 3, 5, DoTFlags)
-            {
-                AddEffect(new DamageOverTime(this, Amount, Operators.Additive, DoTProps) { Type = DoTTypes.WindShear });
                 Name = "Wind Shear";
+                Turns = 3;
+                MaxStacks = 5;
+                Properties = DoTFlags;
             }
+            public double? ShearAmount { get; init; }
+            public override StatusEffect Init() => AddEffect(new DamageOverTime(ShearAmount ?? 0.65 * Source.GetStatVersus(Stats.Atk, Target), Operators.AddValue) { Type = DoTTypes.WindShear });
         }
     }
 }

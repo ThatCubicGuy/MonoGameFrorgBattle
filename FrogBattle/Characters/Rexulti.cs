@@ -11,36 +11,7 @@ namespace FrogBattle.Characters
 {
     internal class Rexulti : Character
     {
-        // Passives
-        private PassiveEffect CritRateAndDamageBoost
-        {
-            get
-            {
-                var result = new PassiveEffect(this)
-                {
-                    Condition = new EffectsTypeCount<DamageOverTime>(new(Max: 10))
-                };
-                var effect1 = new Modifier(result, 0.02, Stats.CritRate, Operators.Additive);
-                var effect2 = new Modifier(result, 0.05, Stats.CritDamage, Operators.Additive);
-                result.Subeffects[effect1.GetKey()] = effect1;
-                result.Subeffects[effect2.GetKey()] = effect2;
-                return result;
-            }
-        }
-        private PassiveEffect EnergyRequirementReduction
-        {
-            get
-            {
-                var result = new PassiveEffect(this)
-                {
-                    Condition = new EffectsTypeCount<DamageOverTime>(new(Max: 1))
-                };
-                var effect1 = new Modifier(result, -100, Stats.MaxEnergy, Operators.Additive);
-                result.Subeffects[effect1.GetKey()] = effect1;
-                return result;
-            }
-        }
-        public Rexulti(string name, BattleManager battle, bool team) : base(name, battle, team, new()
+        public Rexulti(string name, BattleManager battle) : base(name, battle, new()
         {
             { Stats.MaxHp, Registry.DefaultStats[Stats.MaxHp] * 0.375 },
             { Stats.Atk, Registry.DefaultStats[Stats.Atk] * 0.8 },
@@ -48,16 +19,26 @@ namespace FrogBattle.Characters
             { Stats.CritRate, 0.05 },
         })
         {
-            Pronouns = new("he", "him", "his", "his", "himself", true);
-            PassiveEffects.Add(CritRateAndDamageBoost);
-            PassiveEffects.Add(EnergyRequirementReduction);
+            Pronouns = Registry.CommonPronouns.HE_HIM;
+            PassiveEffects.Add(new CritRateAndDamageBoost());
             DamageDealt += DoTEnergyRecharge;
             DamageDealt += BlessedDoTBoost;
             EffectApplied += BlessedDoTApplication;
             DamageDealt += SinfulCreatureAdditionalDamage;
             AbilityLaunched += DoTTrigger<Memory>(2);
             AbilityLaunched += DoTTrigger<Devastate>(1);
-            AddEffect(new DoTDamageRES(this, this));
+            AddEffect(new DoTDamageRES() { Target = this });
+        }
+
+        // Passives
+        private class CritRateAndDamageBoost : PassiveEffect
+        {
+            public CritRateAndDamageBoost() : base()
+            {
+                Condition = new EffectsTypeCount<DamageOverTime>(new(Min: 0, Max: 10));
+                AddEffect(new Modifier(0.02, Stats.CritRate, Operators.AddValue));
+                AddEffect(new Modifier(0.05, Stats.CritDamage, Operators.AddValue));
+            }
         }
 
         private void BlessedDoTApplication(object sender, StatusEffect e)
@@ -66,12 +47,12 @@ namespace FrogBattle.Characters
             {
                 const int count = 3;
                 var dotList = new List<StatusEffect>()
-            {
-                new Registry.Bleed(e.Source, e.Target) { Turns = 5 },
-                new Registry.Burn(e.Source, e.Target) { Turns = 5 },
-                new Registry.Shock(e.Source, e.Target) { Turns = 5 },
-                new Registry.WindShear(e.Source, e.Target) { Turns = 5 }
-            };
+                {
+                    new Registry.Bleed() { Source = e.Source, Target = e.Target, Turns = 5 },
+                    new Registry.Burn() { Source = e.Source, Target = e.Target, Turns = 5 },
+                    new Registry.Shock() { Source = e.Source, Target = e.Target, Turns = 5 },
+                    new Registry.WindShear() { Source = e.Source, Target = e.Target, Turns = 5 }
+                };
                 dotList = [.. dotList.OrderBy(x => BattleManager.RNG)];
                 foreach (var item in dotList.Take(count))
                 {
@@ -81,69 +62,87 @@ namespace FrogBattle.Characters
         }
 
         // 25% chance to do damage again
-        private void BlessedDoTBoost(object sender, Damage.DamageSnapshot e)
+        private void BlessedDoTBoost(object sender, Damage.Snapshot e)
         {
             if (e.Info.Source == DamageSources.DamageOverTime)
             {
                 if (BattleManager.RNG < 0.25)
                 {
-                    e.Target.TakeDamage(e with { Info = e.Info with { Source = DamageSources.Additional } });
+                    var additionalDamage = e with { Info = e.Info with { Source = DamageSources.Additional } };
+                    additionalDamage.Take();
+                    AddBattleText(Generic.Damage, additionalDamage.Source, additionalDamage.Target, additionalDamage);
                 }
             }
         }
 
         private class Bleed : StatusEffect
         {
-            public Bleed(Character source, Character target) : base(source, target, 3, 10, Flags.Debuff | Flags.StartTick)
+            public Bleed() : base()
             {
-                AddEffect(new DamageOverTime(this, 0.96 * source.GetStatVersus(Stats.Atk, target), Operators.Additive, new()));
+                Turns = 3;
+                MaxStacks = 10;
+                Properties = Flags.Debuff | Flags.StartTick;
                 Name = "Bleed";
             }
+            public override StatusEffect Init() => AddEffect(new DamageOverTime(0.96 * Source.GetStatVersus(Stats.Atk, Target), Operators.AddValue));
         }
         private class Burn : StatusEffect
         {
-            public Burn(Character source, Character target) : base(source, target, 1, 5, Flags.Debuff | Flags.StartTick)
+            public Burn() : base()
             {
-                AddEffect(new DamageOverTime(this, 0.50 * source.GetStatVersus(Stats.Atk, target), Operators.Additive, new()));
+                Turns = 1;
+                MaxStacks = 99;
+                Properties = Flags.Debuff | Flags.StartTick;
                 Name = "Burn";
             }
+            public override StatusEffect Init() => AddEffect(new DamageOverTime(0.50 * Source.GetStatVersus(Stats.Atk, Target), Operators.AddValue));
         }
         private class Blessed : StatusEffect
         {
-            public Blessed(Character source, Character target) : base(source, target, 5, 1, Flags.StartTick | Flags.Debuff)
+            public Blessed() : base()
             {
+                Turns = 5;
+                MaxStacks = 1;
+                Properties = Flags.StartTick | Flags.Debuff;
                 Name = "Blessed";
             }
+            public override StatusEffect Init() => this;
         }
         private class SinfulCreature : StatusEffect
         {
-            public SinfulCreature(Character source, Character target) : base(source, target, 3, 5, Flags.Debuff | Flags.Unremovable)
+            public SinfulCreature() : base()
             {
-                AddEffect(new DamageRES(this, -0.02));
+                Turns = 3;
+                MaxStacks = 5;
+                Properties = Flags.Debuff | Flags.Unremovable;
                 Name = "Sinful Creature";
             }
+            public override StatusEffect Init() => AddEffect(new DamageRES(-0.02));
         }
         private class DoTDamageRES : StatusEffect
         {
-            public DoTDamageRES(Character source, Character target) : base(source, target, 1, 1, Flags.Unremovable | Flags.Hidden | Flags.Infinite)
+            public DoTDamageRES() : base()
             {
-                AddEffect(new DamageSourceRES(this, 0.15, DamageSources.DamageOverTime));
+                Turns = 1;
+                MaxStacks = 1;
+                Properties = Flags.Unremovable | Flags.Hidden | Flags.Infinite;
                 Name = "DoT Damage RES";
             }
+            public override StatusEffect Init() => AddEffect(new DamageSourceRES(0.15, DamageSources.DamageOverTime));
         }
-        private void SinfulCreatureAdditionalDamage(object sender, Damage.DamageSnapshot e)
+        private void SinfulCreatureAdditionalDamage(object sender, Damage.Snapshot e)
         {
-            if (e.Target.StatusEffects.Any(x => x is SinfulCreature) && e.Target.GetActives<DamageOverTime>().Count != 0)
+            if (e.Target is Character tg && tg.ActiveEffects.Any(x => x is SinfulCreature) && tg.GetActives<DamageOverTime>().Count != 0)
             {
-                e.Target.TakeDamage(new Damage(this, e.Target, e.Amount * 0.5, e.Info));
+                new Damage(this, tg, e.Amount * 0.5, e.Info).Take();
             }
         }
 
-        private void DoTEnergyRecharge(object sender, Damage.DamageSnapshot e)
+        private void DoTEnergyRecharge(object sender, Damage.Snapshot e)
         {
             if (e.Info.Source == DamageSources.DamageOverTime)
             {
-                e.Source.ApplyChange(new Reward(sender as Character, this, 1, Pools.Energy, Operators.Additive));
+                ApplyChange(new Reward(sender as Character, this, 1, Pools.Energy, Operators.AddValue));
             }
         }
 
@@ -158,123 +157,121 @@ namespace FrogBattle.Characters
                 4 => new Memory(this, target),
                 5 => new ThisEndsNow(this, target),
                 6 => new Devastate(this, target),
-                _ => throw new ArgumentOutOfRangeException(nameof(selector), $"Invalid ability number: {selector}")
+                _ => throw InvalidAbility(selector)
             };
         }
 
+        #region Abilities
         public class Pathetic : SingleTargetAttack
         {
-            public static AttackInfo AttackProps => new()
-            {
-                Ratio = 1.1,
-                Scalar = Stats.Atk,
-                DamageInfo = DamageProps,
-                HitRate = 1
-            };
-            public static DamageInfo DamageProps => new()
+            private static readonly DamageInfo DamageProps = new()
             {
                 Type = DamageTypes.Blunt,
-                Source = DamageSources.Attack
+                Source = DamageSources.Attack,
+                CanCrit = true
             };
-            public static EffectInfo[] EffectProps(Character parent, Character target) => [new()
+            private static readonly AttackInfo AttackProps = new()
             {
-                AppliedEffect = new Bleed(parent, target),
+                DamageInfo = DamageProps,
+                Ratio = 1.1,
+                Scalar = Stats.Atk,
+                HitRate = 1
+            };
+            private static readonly EffectInfo[] EffectProps = [new EffectInfo<Bleed>()
+            {
                 Chance = 1,
                 ChanceType = ChanceTypes.Base
             }];
-            public Pathetic(Character source, Character target) : base(source, target, new(), AttackProps, EffectProps(source, target))
+            public Pathetic(Character source, Character target) : base(source, target, new(), AttackProps, EffectProps)
             {
                 WithGenericManaCost(15);
             }
         }
         public class ShadowFlare : BounceAttack
         {
-            public static AttackInfo AttackProps => new()
-            {
-                Ratio = 2.00,
-                Scalar = Stats.Atk,
-                DamageInfo = DamageProps,
-                HitRate = 1,
-            };
-            public static DamageInfo DamageProps => new()
+            private static readonly DamageInfo DamageProps = new()
             {
                 Type = DamageTypes.Magic,
                 Source = DamageSources.Attack
             };
-            public static EffectInfo[] EffectProps(Character parent, Character target) => [new()
+            private static readonly AttackInfo AttackProps = new()
             {
-                AppliedEffect = new Burn(parent, target),
+                DamageInfo = DamageProps,
+                Ratio = 2.00,
+                Scalar = Stats.Atk,
+                HitRate = 1,
+            };
+            private static readonly EffectInfo[] EffectProps = [new EffectInfo<Burn>()
+            {
                 Chance = 0.65,
                 ChanceType = ChanceTypes.Base
             }];
-            public ShadowFlare(Character source, Character target) : base(source, target, new(), AttackProps, EffectProps(source, target),
+            public ShadowFlare(Character source, Character target) : base(source, target, new(), AttackProps, EffectProps,
                 count: (uint)Math.Floor(BattleManager.RNG * 5 + 1))
             {
                 WithGenericManaCost(20);
             }
         }
-        public class Sacrifice : Buff
+        public class Sacrifice : ApplyEffectOn
         {
-            private class Buff : StatusEffect
+            private class AtkBuff : StatusEffect
             {
-                public Buff(Character source) : base(source, source, 5, 1, Flags.Unremovable)
+                public AtkBuff() : base()
                 {
-                    AddEffect(new Modifier(this, 350, Stats.Atk, Operators.Additive));
+                    Turns = 5;
+                    MaxStacks = 1;
+                    Properties = Flags.Unremovable;
                     Name = "Sacrifice";
                 }
+                public override StatusEffect Init() => AddEffect(new Modifier(350, Stats.Atk, Operators.AddValue));
             }
-            private static EffectInfo[] EffectProps(Character parent) => [new()
-            {
-                AppliedEffect = new Buff(parent)
-            }];
-            public Sacrifice(Character source) : base(source, source, new(), EffectProps(source))
+            private static readonly EffectInfo[] EffectProps = [new EffectInfo<AtkBuff>()];
+            public Sacrifice(Character source) : base(source, source, new(), EffectProps)
             {
                 WithGenericManaCost(20, 0.5);
-                WithGenericCost(new(this, 0.01, Pools.Hp, Operators.Multiplicative));
+                WithGenericCost(new(this, 0.01, Pools.Hp, Operators.MultiplyBase));
             }
         }
         public class Memory : SingleTargetAttack
         {
-            private static AttackInfo AttackProps => new()
-            {
-                Ratio = 5.66,
-                Scalar = Stats.Atk,
-                DamageInfo = DamageProps
-            };
-            private static DamageInfo DamageProps => new()
+            private static readonly DamageInfo DamageProps = new()
             {
                 Type = DamageTypes.Magic,
                 Source = DamageSources.Attack,
                 DefenseIgnore = 1,
                 CanCrit = false
             };
+            private static readonly AttackInfo AttackProps = new()
+            {
+                DamageInfo = DamageProps,
+                Ratio = 5.66,
+                Scalar = Stats.Atk
+            };
             public Memory(Character source, Character target) : base(source, target, new(), AttackProps, null)
             {
                 WithGenericManaCost(40);
-                // next up: figure out how to kafka my bluh's attack
             }
         }
         public class ThisEndsNow : SingleTargetAttack
         {
-            private static AttackInfo AttackProps => new()
-            {
-                Ratio = 7.00,
-                Scalar = Stats.Atk,
-                DamageInfo = DamageProps
-            };
-            private static DamageInfo DamageProps => new()
+            private static readonly DamageInfo DamageProps = new()
             {
                 Type = DamageTypes.Bullet,
                 Source = DamageSources.Attack
             };
-            private static EffectInfo[] EffectProps(Character source, Character target) => [new()
+            private static readonly AttackInfo AttackProps = new()
             {
-                AppliedEffect = new Bleed(source, target),
+                DamageInfo = DamageProps,
+                Ratio = 7.00,
+                Scalar = Stats.Atk
+            };
+            private static readonly EffectInfo[] EffectProps = [new EffectInfo<Bleed>()
+            {
                 Chance = 1,
                 ChanceType = ChanceTypes.Base
             }];
 
-            public ThisEndsNow(Character source, Character target) : base(source, target, new(), AttackProps, EffectProps(source, target))
+            public ThisEndsNow(Character source, Character target) : base(source, target, new(), AttackProps, EffectProps)
             {
                 WithGenericManaCost(34);
             }
@@ -283,101 +280,94 @@ namespace FrogBattle.Characters
         {
             private class DevastateExplosion(Character source, Character target) : AoEAttack(source, target, new(), AttackProps, null)
             {
-                private static AttackInfo AttackProps => new()
-                {
-                    Ratio = 2.35,
-                    Scalar = Stats.Atk,
-                    DamageInfo = DamageProps
-                };
-                private static DamageInfo DamageProps => new()
+                private static readonly DamageInfo DamageProps = new()
                 {
                     Type = DamageTypes.Blast,
                     Source = DamageSources.Attack,
                     CanCrit = true,
                 };
-            }
-            private class DevastateSlash1(Character source, Character target) : SingleTargetAttack(source, target, new(), AttackProps, EffectProps(source, target))
-            {
-                private static AttackInfo AttackProps => new()
+                private static readonly AttackInfo AttackProps = new()
                 {
+                    DamageInfo = DamageProps,
+                    Ratio = 2.35,
+                    Scalar = Stats.Atk
+                };
+            }
+            private class DevastateSlash1(Character source, Character target) : SingleTargetAttack(source, target, new(), AttackProps, EffectProps)
+            {
+                private static readonly DamageInfo DamageProps = new()
+                {
+                    Type = DamageTypes.Slash,
+                    Source = DamageSources.Attack,
+                    CanCrit = true,
+                };
+                private static readonly AttackInfo AttackProps = new()
+                {
+                    DamageInfo = DamageProps,
                     Ratio = 1.10,
                     Scalar = Stats.Atk,
-                    DamageInfo = DamageProps,
-                    HitRate = 0.85,
+                    HitRate = 0.85
                 };
-                private static DamageInfo DamageProps => new()
+                private static readonly EffectInfo[] EffectProps = [new EffectInfo<Registry.Bleed>()
+                {
+                    Chance = 1.00,
+                    ChanceType = ChanceTypes.Base
+                }];
+            }
+            private class DevastateSlash2(Character source, Character target) : SingleTargetAttack(source, target, new(), AttackProps, EffectProps)
+            {
+                private static readonly DamageInfo DamageProps = new()
                 {
                     Type = DamageTypes.Slash,
                     Source = DamageSources.Attack,
                     CanCrit = true,
                 };
-                private static EffectInfo[] EffectProps(Character source, Character target) => [new()
+                private static readonly AttackInfo AttackProps = new()
                 {
-                    AppliedEffect = new Registry.Bleed(source, target),
-                    Chance = 1.00,
-                    ChanceType = ChanceTypes.Base
-                }];
-            }
-            private class DevastateSlash2(Character source, Character target) : SingleTargetAttack(source, target, new(), AttackProps, EffectProps(source, target))
-            {
-                private static AttackInfo AttackProps => new()
-                {
+                    DamageInfo = DamageProps,
                     Ratio = 2.35,
                     Scalar = Stats.Atk,
-                    DamageInfo = DamageProps,
-                    HitRate = 0.75,
+                    HitRate = 0.75
                 };
-                private static DamageInfo DamageProps => new()
+                private static readonly EffectInfo[] EffectProps = [new EffectInfo<Blessed>()
                 {
-                    Type = DamageTypes.Slash,
-                    Source = DamageSources.Attack,
-                    CanCrit = true,
-                };
-                private static EffectInfo[] EffectProps(Character source, Character target) => [new()
-                {
-                    AppliedEffect = new Blessed(source, target),
                     Chance = 1.00,
                     ChanceType = ChanceTypes.Base
                 }];
             }
-            private class DevastateSlash3(Character source, Character target) : SingleTargetAttack(source, target, new(), AttackProps, EffectProps(source, target))
+            private class DevastateSlash3(Character source, Character target) : SingleTargetAttack(source, target, new(), AttackProps, EffectProps)
             {
-                private static AttackInfo AttackProps => new()
-                {
-                    Ratio = 15.00,
-                    Scalar = Stats.Atk,
-                    DamageInfo = DamageProps,
-                    HitRate = 1
-                };
-                private static DamageInfo DamageProps => new()
+                private static readonly DamageInfo DamageProps = new()
                 {
                     Type = DamageTypes.Slash,
                     Source = DamageSources.Attack,
                     CanCrit = true,
                 };
-                private static EffectInfo[] EffectProps(Character source, Character target) => [new()
+                private static readonly AttackInfo AttackProps = new()
                 {
-                    AppliedEffect = new SinfulCreature(source, target),
+                    DamageInfo = DamageProps,
+                    Ratio = 15.00,
+                    Scalar = Stats.Atk,
+                    HitRate = 1
+                };
+                private static readonly EffectInfo[] EffectProps = [new EffectInfo<SinfulCreature>()
+                {
                     Chance = 1.00,
                     ChanceType = ChanceTypes.Base
-                }, new()
+                }, new EffectInfo<Registry.Bleed>()
                 {
-                    AppliedEffect = new Registry.Bleed(source, target),
                     Chance = 1.00,
                     ChanceType = ChanceTypes.Base
-                }, new()
+                }, new EffectInfo<Registry.Burn>()
                 {
-                    AppliedEffect = new Registry.Burn(source, target),
                     Chance = 1.00,
                     ChanceType = ChanceTypes.Base
-                }, new()
+                }, new EffectInfo<Registry.Shock>()
                 {
-                    AppliedEffect = new Registry.Shock(source, target),
                     Chance = 1.00,
                     ChanceType = ChanceTypes.Base
-                }, new()
+                }, new EffectInfo<Registry.WindShear>()
                 {
-                    AppliedEffect = new Registry.WindShear(source, target),
                     Chance = 1.00,
                     ChanceType = ChanceTypes.Base
                 }];
@@ -390,7 +380,7 @@ namespace FrogBattle.Characters
             {
                 var text = FlavourText();
                 double finalDamage = 0;
-                void checkTotalDamage(object s, Damage.DamageSnapshot e)
+                void checkTotalDamage(object sender, Damage.Snapshot e)
                 {
                     finalDamage += e.Amount;
                 }
@@ -404,22 +394,32 @@ namespace FrogBattle.Characters
                 AddText(text[TextTypes.Damage1], Parent, Target);
                 // 3 Slashes
                 var slashset1 = new DevastateSlash1(Parent, Target);
-                if (!slashset1.TryUse() || !slashset1.TryUse() || !slashset1.TryUse()) return false;
+                bool success1 = slashset1.TryUse() && slashset1.TryUse() && slashset1.TryUse();
                 // 2 Slashes
                 var slashset2 = new DevastateSlash2(Parent, Target);
-                if (!slashset2.TryUse() || !slashset2.TryUse()) return false;
+                bool success2 = slashset2.TryUse() && slashset2.TryUse();
                 // 1 Final slash
                 var slash3 = new DevastateSlash3(Parent, Target);
-                if (!slash3.TryUse()) return false;
+                bool success3 = slash3.TryUse();
                 // Ability end text
                 AddText(text[TextTypes.End], Parent, Target, finalDamage);
                 Target.DamageTaken -= checkTotalDamage;
-                return true;
+                return success1 || success2 || success3;
             }
         }
-        public class Phase2 : Character
+        #endregion
+
+        public override void Die()
         {
-            public Phase2(string name, BattleManager battle, bool IS_TEAM_1) : base(name, battle, IS_TEAM_1, new()
+            var phase2 = new RexultiPhase2(Name, ParentBattle) { EnemyTeam = EnemyTeam, Team = Team };
+            Team.Remove(this);
+            Team.Add(phase2);
+            AddBattleText(_internalName + ".phase2", this, phase2);
+        }
+    }
+    internal class RexultiPhase2 : Character
+    {
+        public RexultiPhase2(string name, BattleManager battle) : base(name, battle, new()
             {
                 { Stats.MaxHp, Registry.DefaultStats[Stats.MaxHp] * 0.625 },
                 { Stats.Atk, Registry.DefaultStats[Stats.Atk] * 1.1 },
@@ -427,17 +427,97 @@ namespace FrogBattle.Characters
                 { Stats.CritRate, 0.20 },
                 { Stats.CritDamage, 0.65 },
             })
-            {
+        {
 
-            }
-            public override Ability SelectAbility(Character target, int selector)
+        }
+        public override Ability SelectAbility(Character target, int selector)
+        {
+            return selector switch
             {
-                return selector switch
+                0 => new SkipTurn(this),
+                1 => new Kneel(this, target),
+                2 => new Court(this, target),
+                _ => throw new ArgumentOutOfRangeException(nameof(selector), $"Invalid ability number: {selector}"),
+            };
+        }
+
+        #region Abilities
+        public class Kneel : SingleTargetAttack
+        {
+            private static readonly DamageInfo DamageProps = new()
+            {
+                Source = DamageSources.Attack,
+                Type = DamageTypes.Magic,
+                CanCrit = true
+            };
+            private static readonly AttackInfo AttackProps = new()
+            {
+                DamageInfo = DamageProps,
+                Ratio = 7.00,
+                Scalar = Stats.Atk,
+                HitRate = 1
+            };
+            private static EffectInfo[] EffectProps
+            {
+                get
                 {
-                    0 => new SkipTurn(this),
-                    _ => throw new ArgumentOutOfRangeException(nameof(selector), $"Invalid ability number: {selector}"),
-                };
+                    List<EffectInfo> result =
+                    [
+                        new EffectInfo<Registry.Bleed>() { Chance = 1.00, ChanceType = ChanceTypes.Base },
+                        new EffectInfo<Registry.Burn>() { Chance = 1.00, ChanceType = ChanceTypes.Base },
+                        new EffectInfo<Registry.Shock>() { Chance = 1.00, ChanceType = ChanceTypes.Base },
+                        new EffectInfo<Registry.WindShear>() { Chance = 1.00, ChanceType = ChanceTypes.Base }
+                    ];
+                    result.RemoveAt((int)Math.Floor(BattleManager.RNG * 4));
+                    return [.. result];
+                }
+            }
+            public Kneel(Character source, Character target) : base(source, target, new(), AttackProps, EffectProps)
+            {
+                WithGenericManaCost(21);
             }
         }
+        public class Court : ApplyEffectOn
+        {
+            private class DefenseDown : StatusEffect
+            {
+                public DefenseDown() : base()
+                {
+                    Turns = 4;
+                    MaxStacks = 1;
+                    Properties = Flags.Debuff;
+                    Name = "Defense Down";
+                }
+                public override StatusEffect Init() => AddEffect(new Modifier(-0.5, Stats.Def, Operators.MultiplyBase));
+            }
+            private static readonly EffectInfo[] EffectProps =
+                [
+                    new EffectInfo<DefenseDown>(Chance: 1.00, ChanceType: ChanceTypes.Base)
+                ];
+            public Court(Character source, Character target) : base(source, target, new(), EffectProps)
+            {
+                WithGenericManaCost(19);
+            }
+        }
+        public class Dance : BounceAttack
+        {
+            private static readonly AttackInfo AttackProps = new()
+            {
+                Ratio = 1.90,
+                Scalar = Stats.Atk,
+                DamageInfo = DamageProps,
+            };
+            private static readonly DamageInfo DamageProps = new()
+            {
+                Type = DamageTypes.Magic,
+                Source = DamageSources.Attack,
+                CanCrit = true,
+            };
+            public Dance(Character source, Character mainTarget) : base(source, mainTarget, new(), AttackProps, null, 3)
+            {
+                WithGenericManaCost(29);
+            }
+        }
+        #endregion
     }
 }

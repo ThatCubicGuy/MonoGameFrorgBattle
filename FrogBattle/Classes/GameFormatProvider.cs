@@ -27,7 +27,8 @@ namespace FrogBattle.Classes
             else format = format.ToLower();
             return arg switch
             {
-                Damage dm => format[0] == 'x' ? (format.Length == 1 ? throw new FormatException("Unable to use auto formatting without a second token") : Localization.Translate("damage.display." + format[1] switch
+                Damage dm => Format(format, dm.GetSnapshot(1), formatProvider),
+                Damage.Snapshot ds => format[0] == 'x' ? (format.Length == 1 ? throw new FormatException("Unable to use auto formatting without a second token") : Localization.Translate("damage.display." + format[1] switch
                 {
                     // f - Full
                     'f' => "full",
@@ -35,16 +36,16 @@ namespace FrogBattle.Classes
                     's' => "short",
                     // Unknown
                     _ => throw new FormatException($"Unknown format string token: {format[1]}")
-                }, dm)) : string.Join(' ', format.Select(x => x switch
+                }, ds)) : string.Join(' ', format.Select(x => x switch
                 {
                     // a - Amount
-                    'a' => dm.Amount.ToString("F0"),
+                    'a' => ds.Amount.ToString("F0"),
                     // t - Type
-                    't' => Localization.Translate("damage.type." + dm.Info.Type.ToString().FirstLower()),
+                    't' => Localization.Translate("damage.type." + ds.Info.Type.ToString().FirstLower()),
                     // s - Source
-                    's' => Localization.Translate("damage.source." + dm.Info.Source.ToString().FirstLower()),
+                    's' => Localization.Translate("damage.source." + ds.Info.Source.ToString().FirstLower()),
                     // c - Critical
-                    'c' => dm.Crit ? Localization.Translate("damage.critical") : null,
+                    'c' => ds.IsCrit ? Localization.Translate("damage.critical") : null,
                     // Unknown
                     _ => throw new FormatException($"Unknown format string token: {x}")
                 }).Where(x => x != null)),
@@ -77,7 +78,7 @@ namespace FrogBattle.Classes
                     'b' => ef.Is(Flags.Debuff) ? "debuff" : "buff",
                     // Unknown
                     _ => throw new FormatException($"Unknown format string token: {format[0]}")
-                }).Where(x => x != null)),
+                })),
 
                 Character ch => format[0] switch
                 {
@@ -86,13 +87,27 @@ namespace FrogBattle.Classes
                     // u - Uppercase first letter
                     'u' => string.Format(Instance, $"{{0:{format[1..]}}}", arg).FirstUpper(),
                     // p - Pronoun
-                    'p' => format.Length == 1 ? throw new FormatException("Pronoun token requires selector") : ch.Pronouns.PronArray[int.Parse([format[1]])],
-                    // e - Extra "es" for the verbs of some pronouns
-                    'e' => ch.Pronouns.Extra_S ? "es" : string.Empty,
-                    // s - Extra 's' for the verbs of some pronouns
-                    's' => ch.Pronouns.Extra_S ? "s" : string.Empty,
+                    'p' => format.Length == 1 ? throw new FormatException("Pronoun token requires selector!") : ch.Pronouns.PronArray[int.Parse([format[1]])],
                     // n - Name
                     'n' => ch.Name,
+                    // v - Verb related bullshit
+                    'v' => format.Length == 1 ? throw new FormatException("Verb token requires selector!") : format[1] switch
+                    {
+                        // i - is / are
+                        'i' => ch.Pronouns.Singular ? "is" : "are",
+                        // w - was / were
+                        'w' => ch.Pronouns.Singular ? "was" : "were",
+                        // h - has / have
+                        'h' => ch.Pronouns.Singular ? "has" : "have",
+                        // y - Distinction between -y and -ies
+                        'y' => ch.Pronouns.Singular ? "ies" : "y",
+                        // e - Extra "es" for the verbs of some pronouns
+                        'e' => ch.Pronouns.Singular ? "es" : string.Empty,
+                        // s - Extra 's' for the verbs of some pronouns
+                        's' => ch.Pronouns.Singular ? "s" : string.Empty,
+                        // Unknown
+                        _ => throw new FormatException($"Unknown format string token: {format[1]}")
+                    },
                     // Unknown
                     _ => throw new FormatException($"Unknown format string token: {format[0]}")
                 },

@@ -2,10 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using static FrogBattle.Classes.StatusEffect;
 
 namespace FrogBattle.Classes
 {
@@ -30,8 +26,8 @@ namespace FrogBattle.Classes
         {
             return op switch
             {
-                Operators.Additive => amount,
-                Operators.Multiplicative => amount * baseValue,
+                Operators.AddValue => amount,
+                Operators.MultiplyBase => amount * baseValue,
                 _ => throw new ArgumentOutOfRangeException(nameof(op), op, null),
             };
         }
@@ -40,8 +36,8 @@ namespace FrogBattle.Classes
             if (amount == null) return null;
             return op switch
             {
-                Operators.Additive => amount,
-                Operators.Multiplicative => amount * baseValue,
+                Operators.AddValue => amount,
+                Operators.MultiplyBase => amount * baseValue,
                 _ => throw new ArgumentOutOfRangeException(nameof(op), op, null),
             };
         }
@@ -49,8 +45,8 @@ namespace FrogBattle.Classes
         {
             return op switch
             {
-                Operators.Additive => amount,
-                Operators.Multiplicative => amount * fighter.Base[baseStat],
+                Operators.AddValue => amount,
+                Operators.MultiplyBase => amount * fighter.Base[baseStat],
                 _ => throw new ArgumentOutOfRangeException(nameof(op), op, null),
             };
         }
@@ -117,6 +113,131 @@ namespace FrogBattle.Classes
         {
             throw new NotImplementedException();
         }
+        #region Effect Methods
+
+
+        // Actives
+
+        /// <summary>
+        /// Searches <see cref="ActiveEffects"/> for all effects that contain an effect of type <typeparamref name="TResult"/>.
+        /// </summary>
+        /// <returns>A list of every <typeparamref name="TResult"/> effect from the fighter's currently applied StatusEffects.</returns>
+        public static List<TResult> GetActives<TResult>(this ICanHaveActives ch) where TResult : Subeffect
+        {
+            return [.. ch.ActiveEffects.SelectMany((x) => x.GetSubeffectsOfType<TResult>().Values)];
+        }
+        /// <summary>
+        /// Searches <see cref="ActiveEffects"/> for all status effects that modify the <see cref="Stats"/> <paramref name="stat"/> in some way.
+        /// </summary>
+        /// <param name="stat">The modifier type to search for.</param>
+        /// <returns>An enumerable of StatusEffects that modify <paramref name="stat"/>.</returns>
+        public static List<StatusEffect> GetActives(this ICanHaveActives ch, Stats stat)
+        {
+            return ch.ActiveEffects.FindAll((x) => x.GetModifier(stat) != null);
+        }
+        /// <summary>
+        /// Calculates the full modification of a certain stat by every active <see cref="StatusEffect"/>.
+        /// This method applies stack counts.
+        /// </summary>
+        /// <param name="stat">The stat whose modifications to search for.</param>
+        /// <returns>A double that represents the modification from the base value of the given stat.</returns>
+        public static double GetActivesValue(this ICanHaveActives ch, Stats stat)
+        {
+            return ch.GetActives(stat).Sum((x) => x.GetModifier(stat).Amount * x.Stacks);
+        }
+
+        // Passives
+
+        /// <summary>
+        /// Searches <see cref="PassiveEffects"/> for all effects that contain an effect of type <typeparamref name="TResult"/>.
+        /// </summary>
+        /// <returns>A list of every <typeparamref name="TResult"/> effect from the fighter's currently active PassiveEffects.</returns>
+        public static List<TResult> GetPassives<TResult>(this ICanHavePassives ch) where TResult : Subeffect
+        {
+            return [.. ch.PassiveEffects.SelectMany((x) => x.GetSubeffectsOfType<TResult>().Values)];
+        }
+        /// <summary>
+        /// Searches <see cref="PassiveEffects"/> for all effects that modify the <see cref="Stats"/> <paramref name="stat"/> in some way.
+        /// </summary>
+        /// <param name="stat">The modifier type to search for.</param>
+        /// <returns>An enumerable of PassiveEffects that modify <paramref name="stat"/>.</returns>
+        public static List<PassiveEffect> GetPassives(this ICanHavePassives ch, Stats stat)
+        {
+            return ch.PassiveEffects.FindAll((x) => x.GetModifier(stat) != null);
+        }
+        /// <summary>
+        /// Calculates the full modification of a certain stat by every active <see cref="PassiveEffect"/>.
+        /// This method applies stack counts.
+        /// </summary>
+        /// <param name="stat">The stat whose modifications to search for.</param>
+        /// <returns>A double that represents the modification from the base value of the given stat.</returns>
+        public static double GetPassivesValue(this ICanHavePassives ch, Stats stat, Character target)
+        {
+            return ch.GetPassives(stat).Sum(x => x.GetModifier(stat).Amount * x.GetStacks(target));
+        }
+
+        // Both cuz im smart
+
+        /// <summary>
+        /// Gets the full outgoing generic damage modification for the given type, against the given target.
+        /// </summary>
+        /// <param name="target">The target for which to calculate passives. Null by default, which won't count passives.</param>
+        /// <returns>The modification value. 0 by default.</returns>
+        public static double GetDamageBonus(this ISupportsEffects ch, Character target = null)
+        {
+            return ch.GetActives<DamageBonus>().Sum(x => x.Amount * (x.Parent as StatusEffect).Stacks) + ch.GetPassives<DamageBonus>().Sum(x => x.Amount * (x.Parent as PassiveEffect).GetStacks(target));
+        }
+        /// <summary>
+        /// Gets the full incoming generic damage modification for the given type, against the given target.
+        /// </summary>
+        /// <param name="target">The target for which to calculate passives. Null by default, which won't count passives.</param>
+        /// <returns>The modification value. 0 by default.</returns>
+        public static double GetDamageRES(this ISupportsEffects ch, Character target = null)
+        {
+            return ch.GetActives<DamageRES>().Sum(x => x.Amount * (x.Parent as StatusEffect).Stacks) + ch.GetPassives<DamageRES>().Sum(x => x.Amount * (x.Parent as PassiveEffect).GetStacks(target));
+        }
+        /// <summary>
+        /// Gets the full outgoing type-specific damage modification for the given type, against the given target.
+        /// </summary>
+        /// <param name="type">The type of damage to calculate for.</param>
+        /// <param name="target">The target for which to calculate passives. Null by default, which won't count passives.</param>
+        /// <returns>The modification value. 0 by default.</returns>
+        public static double GetDamageTypeBonus(this ISupportsEffects ch, DamageTypes type, Character target = null)
+        {
+            return ch.GetActives<DamageTypeBonus>().FindAll(x => x.Type == type).Sum(x => x.Amount * (x.Parent as StatusEffect).Stacks) + ch.GetPassives<DamageTypeBonus>().FindAll(x => x.Type == type).Sum(x => x.Amount * (x.Parent as PassiveEffect).GetStacks(target));
+        }
+        /// <summary>
+        /// Gets the full incoming type-specific damage modification for the given type, against the given target.
+        /// </summary>
+        /// <param name="type">The type of damage to calculate for.</param>
+        /// <param name="target">The target for which to calculate passives. Null by default, which won't count passives.</param>
+        /// <returns>The modification value. 0 by default.</returns>
+        public static double GetDamageTypeRES(this ISupportsEffects ch, DamageTypes type, Character target = null)
+        {
+            return ch.GetActives<DamageTypeRES>().FindAll(x => x.Type == type).Sum(x => x.Amount * (x.Parent as StatusEffect).Stacks) + ch.GetPassives<DamageTypeBonus>().FindAll(x => x.Type == type).Sum(x => x.Amount * (x.Parent as PassiveEffect).GetStacks(target));
+        }
+        /// <summary>
+        /// Gets the full outgoing source-specific damage modification for the given type, against the given target.
+        /// </summary>
+        /// <param name="source">The source of damage to calculate for.</param>
+        /// <param name="target">The target for which to calculate passives. Null by default, which won't count passives.</param>
+        /// <returns>The modification value. 0 by default.</returns>
+        public static double GetDamageSourceBonus(this ISupportsEffects ch, DamageSources source, Character target = null)
+        {
+            return ch.GetActives<DamageSourceBonus>().FindAll(x => x.Source == source).Sum(x => x.Amount * (x.Parent as StatusEffect).Stacks) + ch.GetPassives<DamageSourceBonus>().FindAll(x => x.Source == source).Sum(x => x.Amount * (x.Parent as PassiveEffect).GetStacks(target));
+        }
+        /// <summary>
+        /// Gets the full incoming source-specific damage modification for the given type, against the given target.
+        /// </summary>
+        /// <param name="source">The source of damage to calculate for.</param>
+        /// <param name="target">The target for which to calculate passives. Null by default, which won't count passives.</param>
+        /// <returns>The modification value. 0 by default.</returns>
+        public static double GetDamageSourceRES(this ISupportsEffects ch, DamageSources source, Character target = null)
+        {
+            return ch.GetActives<DamageSourceRES>().FindAll(x => x.Source == source).Sum(x => x.Amount * (x.Parent as StatusEffect).Stacks) + ch.GetPassives<DamageSourceRES>().FindAll(x => x.Source == source).Sum(x => x.Amount * (x.Parent as PassiveEffect).GetStacks(target));
+        }
+
+        #endregion
     }
     internal static class AbilityExtensions
     {
@@ -170,7 +291,7 @@ namespace FrogBattle.Classes
                 $"{src.GetStat(Stats.Dex):0} DEX,",
                 $"{src.Mana:0} MP,",
                 $"{src.Energy:0}/{src.GetStat(Stats.MaxEnergy)}] ") + 
-                string.Join(' ', src.GetActives().Where(x => !x.Is(Flags.Hidden)).Select(x => string.Format(GameFormatProvider.Instance, "{0:xs}", x)));
+                string.Join(' ', src.ActiveEffects.Where(x => !x.Is(StatusEffect.Flags.Hidden)).Select(x => string.Format(GameFormatProvider.Instance, "{0:xs}", x)));
         }
         public static Ability Console_SelectAbility(this Character src)
         {

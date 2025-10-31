@@ -55,9 +55,6 @@ namespace FrogBattle.Classes
             return snapshot;
         }
         public double GetSnapshot(double ratio) => Amount * ratio;
-        public Healing Clone()
-        {
-            return MemberwiseClone() as Healing;
-        }
+        public Healing Clone() => MemberwiseClone() as Healing;
     }
 }

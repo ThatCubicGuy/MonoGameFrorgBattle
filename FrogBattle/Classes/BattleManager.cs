@@ -46,14 +46,14 @@ namespace FrogBattle.Classes
             string name2 = names[p2 - 1][indeces[p2]++];
             Team1.Add(p1 switch
             {
-                1 => new Snake(name1, this, true),
-                2 => new Rexulti(name1, this, true),
+                1 => new Snake(name1, this) { Team = Team1, EnemyTeam = Team2 },
+                2 => new Rexulti(name1, this) { Team = Team1, EnemyTeam = Team2 },
                 _ => throw new Exception("ACTUALLY KILL YOURSELF")
             });
             Team2.Add(p2 switch
             {
-                1 => new Snake(name2, this, false),
-                2 => new Rexulti(name2, this, false),
+                1 => new Snake(name2, this) { Team = Team2, EnemyTeam = Team1 },
+                2 => new Rexulti(name2, this) { Team = Team2, EnemyTeam = Team1 },
                 _ => throw new Exception("ACTUALLY KILL YOURSELF")
             });
             Console.WriteLine("Fighters ready!");
@@ -69,6 +69,7 @@ namespace FrogBattle.Classes
             {
                 while (true)
                 {
+                    ActionBar.ForEach(item => { if (item.Actor is Character c && c.Hp <= 0) c.Die(); });
                     ActionBar.Sort();
                     RunInstaQueue();
                     UpdateText();
@@ -83,8 +84,9 @@ namespace FrogBattle.Classes
             }
             catch (Exception ex)
             {
+                Console.ForegroundColor = ConsoleColor.Black;
+                Console.BackgroundColor = ConsoleColor.Red;
                 Console.WriteLine(ex);
-                Console.WriteLine("[From BattleManager.Run()]");
             }
             return turns;
         }
@@ -99,7 +101,7 @@ namespace FrogBattle.Classes
         }
         public virtual void UpdateText()
         {
-            Console.Clear();
+            //Console.Clear();
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine(LeftSide.Console_ToString());
             Console.ForegroundColor = ConsoleColor.Red;
@@ -111,6 +113,9 @@ namespace FrogBattle.Classes
         public virtual void Kill(Character character)
         {
             if (!Team1.Remove(character) && !Team2.Remove(character)) throw new InvalidOperationException($"Cannot kill character {character.Name} because they are not part of the battle.");
+            if (Team1.Count == 0 || Team2.Count == 0) UpdateText();
+            if (Team1.Count == 0) throw new ApplicationException(string.Format(GameFormatProvider.Instance, $"Team 2 ({string.Join(", ", Team2.Select(x => $"{{{Team2.IndexOf(x)}:N}}"))}) won the game!", [.. Team2]));
+            if (Team2.Count == 0) throw new ApplicationException(string.Format(GameFormatProvider.Instance, $"Team 1 ({string.Join(", ", Team1.Select(x => $"{{{Team1.IndexOf(x)}:N}}"))}) won the game!", [.. Team1]));
         }
     }
     internal class ActionItem(IHasTurn Actor) : IComparable<ActionItem>

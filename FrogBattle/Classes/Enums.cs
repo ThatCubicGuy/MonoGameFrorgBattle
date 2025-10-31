@@ -25,6 +25,7 @@ namespace FrogBattle.Classes
         Additional,
         FollowUp,
         DamageOverTime,
+        Reflect,
     }
     public enum Stats
     {
@@ -59,8 +60,9 @@ namespace FrogBattle.Classes
     }
     public enum Operators
     {
-        Additive,
-        Multiplicative
+        AddValue,
+        MultiplyBase,
+        MultiplyTotal
     }
     public enum ChanceTypes
     {

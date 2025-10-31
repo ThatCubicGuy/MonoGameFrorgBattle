@@ -1,34 +1,57 @@
-﻿using Microsoft.Xna.Framework.Graphics;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
+    /// <summary>
+    /// StatusEffects are attribute modifiers (that have to be attached to entities) that influence the entity's stat in some way, and some more. 
+    /// </summary>
     internal abstract class StatusEffect : IAttributeModifier
     {
+        public static readonly StatusEffect Empty = new EmptyStatusEffect();
+        private sealed class EmptyStatusEffect : StatusEffect
+        {
+            public override StatusEffect Init() => throw new InvalidOperationException("Cannot initialise StatusEffect.Empty");
+        }
+        public bool IsEmpty() => this is EmptyStatusEffect;
+        /// <summary>
+        /// Unique EffectID used in combination with the source fighter to determine whether two StatusEffects are equal.
+        /// </summary>
         private readonly object _uid;
         private uint stacks = 1;
-        private uint turns;
-        
-        public StatusEffect(Character source, Character target, uint turns, uint maxStacks, Flags properties)
+        /// <summary>
+        /// Base constructor for any StatusEffect.
+        /// </summary>
+        /// <param name="source">The character that applied this effect.</param>
+        /// <param name="target">The character to which this effect is applied.</param>
+        /// <param name="turns">The amount of turns this StatusEffect should be applied for.</param>
+        /// <param name="maxStacks">The maximum amount of stacks this StatusEffect can have.</param>
+        /// <param name="properties">Properties such as invisibility or unremovability.</param>
+        /// <param name="effects">Subeffects that this StatusEffect has.</param>
+        public StatusEffect()
         {
-            Source = source;
-            Target = target;
-            Turns = turns;
-            MaxStacks = maxStacks;
-            Properties = properties;
             _uid = GetType();
         }
-        public StatusEffect(StatusEffect other) : this(other.Source, other.Target, other.Turns, other.MaxStacks, other.Properties)
+        /// <summary>
+        /// This is where the StatusEffect initializes the actual subeffects, because many of them require the source or target for the value.
+        /// </summary>
+        public abstract StatusEffect Init();
+        /// <summary>
+        /// Adds turns, stacks and mutable effects from another StatusEffect as necessary.
+        /// </summary>
+        /// <param name="New">The new status effect to take from.</param>
+        public StatusEffect AddMutables(StatusEffect New)
         {
-            Subeffects = new(other.Subeffects);
-            _uid = other._uid;
+            Stacks += New.Stacks;
+            if (New.Properties.HasFlag(Flags.StackTurns)) Turns += New.Turns;
+            foreach (var item in Subeffects.Values.OfType<IMutableEffect>())
+            {
+                if (New.Subeffects.TryGetValue(((Subeffect)item).GetKey(), out var effect)) AddEffect(effect);
+            }
+            return this;
         }
 
         public static bool operator ==(StatusEffect left, StatusEffect right)
@@ -41,26 +64,39 @@ namespace FrogBattle.Classes
         }
         public override bool Equals(object obj)
         {
-            if (this is null) return obj is null;
             if (obj is not StatusEffect eff) return false;
-            return _uid.Equals(eff._uid);
+            return GetHashCode() == eff.GetHashCode();
         }
         public override int GetHashCode()
         {
-            return HashCode.Combine(_uid, Subeffects, MaxStacks, Properties);
+            return HashCode.Combine(_uid, Source);
         }
 
-        public string Name { get; set; }
+        public StatusEffect Clone()
+        {
+            var clone = MemberwiseClone() as StatusEffect;
+            clone.Subeffects = new(Subeffects);
+            foreach (var item in clone.Subeffects.Values)
+            {
+                item.SetParent(clone);
+            }
+            return clone;
+        }
+
+        public string Name { get; init; }
+        // EVERY SINGLE TIME THAT I THINK I MANAGED TO FIND A WAY TO INCCORPORATE required INTO MY CODE
+        // EVERY. SINGLE. TIME. IT GETS REMOVED
+        // CUZ CSHARP IS DUM >:(
         /// <summary>
         /// The character that applied this effect.
         /// </summary>
-        public Character Source { get; }
+        public virtual Character Source { get; init; }
         /// <summary>
         /// The character to which this effect is applied.
         /// </summary>
-        public Character Target { get; }
-        public Dictionary<object, Subeffect> Subeffects { get; } = [];
-        public uint Turns { get => turns; init => turns = value; }
+        public virtual Character Target { get; init; }
+        public Dictionary<object, Subeffect> Subeffects { get; private set; } = [];
+        public uint Turns { get; set; }
         public uint Stacks
         {
             get => stacks;
@@ -69,8 +105,8 @@ namespace FrogBattle.Classes
                 stacks = Math.Min(value, MaxStacks);
             }
         }
-        public uint MaxStacks { get; init; }
-        public Flags Properties { get; }
+        public uint MaxStacks { get; init; } = 1;
+        public Flags Properties { get; init; }
 
         [Flags] public enum Flags
         {
@@ -90,18 +126,23 @@ namespace FrogBattle.Classes
         }
 
         /// <summary>
-        /// Deducts a turn from the StatusEffect and returns true if it has reached its end of lifetime.
+        /// Deducts a turn from the StatusEffect and returns true if it has reached the end of its lifetime.
         /// </summary>
         /// <returns>True if the StatusEffect has run out of turns and should be removed, false otherwise.</returns>
         public bool Expire()
         {
-            return !(Is(Flags.Infinite) || (--turns > 0));
+            return !(Is(Flags.Infinite) || (--Turns > 0));
         }
 
         public StatusEffect AddEffect(Subeffect effect)
         {
-            Subeffects[effect.GetKey()] = effect;
+            if (effect is IMutableEffect mutable) UpdateEffect(mutable);
+            else Subeffects[effect.GetKey()] = effect.SetParent(this);
             return this;
+        }
+        public void UpdateEffect(IMutableEffect effect)
+        {
+            if (Subeffects.TryGetValue(effect.GetKey(), out var result) && result is IMutableEffect mutable) mutable.Amount += effect.Amount;
         }
 
         /// <summary>

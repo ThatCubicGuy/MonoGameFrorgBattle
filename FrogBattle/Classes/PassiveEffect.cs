@@ -6,16 +6,20 @@ using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
-    internal class PassiveEffect : IAttributeModifier
+    /// <summary>
+    /// PassiveEffects are conditional StatusEffects that aren't displayed and are turn independent.
+    /// </summary>
+    internal abstract class PassiveEffect : IAttributeModifier
     {
+        private readonly object _uid;
         public Dictionary<object, Subeffect> Subeffects { get; } = [];
-        public PassiveEffect(Character parent)
+        public PassiveEffect()
         {
-            Source = parent;
+            _uid = GetType();
         }
         public Character Source { get; }
         public Character Target { get => Source; }
-        public required Condition Condition { protected get; init; }
+        public Condition Condition { protected get; init; }
         public uint GetStacks(Character target) => target == null ? 0 : Condition.Get(target);
 
         /// <summary>
@@ -37,10 +41,9 @@ namespace FrogBattle.Classes
             return Subeffects.TryGetValue((typeof(Modifier), stat), out var result) ? result as Modifier : null;
         }
         // Builder methods
-        public PassiveEffect WithEffect(Subeffect effect)
+        public void AddEffect(Subeffect effect)
         {
-            Subeffects[effect.GetKey()] = effect;
-            return this;
+            Subeffects[effect.GetKey()] = effect.SetParent(this);
         }
     }
 }

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "FrogBattle": {
+      "commandName": "Project",
+      "commandLineArgs": "-c"
+    }
+  }
+}
