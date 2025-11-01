@@ -8,7 +8,7 @@ internal class Program
     {
         if (args.Length == 0)
         {
-            using var game = new FrogBattle.FrorgBattle();
+            using var game = new FrogBattle.FrogBattle();
             game.Run();
         }
         else if (args[0] == "-c" || args[0] == "--console")
