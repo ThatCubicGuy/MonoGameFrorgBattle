@@ -8,8 +8,12 @@ namespace FrogBattle.UI
 {
     internal class MenuState
     {
-        private Dictionary<Keys, bool> inactiveLastFrame = [];
-        private SelectableTable menu;
+        private readonly Dictionary<Keys, bool> inactiveLastFrame = [];
+        private readonly SelectableTable table;
+        public MenuState(SelectableTable table)
+        {
+            this.table = table;
+        }
         public void Update()
         {
             CheckKey(Keys.W, MoveUp);
@@ -29,11 +33,11 @@ namespace FrogBattle.UI
                 inactiveLastFrame[key] = false;
                 action.Invoke();
             }
-            else inactiveLastFrame[key] = true;
+            else if (Keyboard.GetState().IsKeyUp(key)) inactiveLastFrame[key] = true;
         }
-        private void MoveUp() => --menu.CursorRow;
-        private void MoveLeft() => --menu.CursorColumn;
-        private void MoveDown() => ++menu.CursorRow;
-        private void MoveRight() => ++menu.CursorColumn;
+        private void MoveUp() => --table.CursorRow;
+        private void MoveLeft() => --table.CursorColumn;
+        private void MoveDown() => ++table.CursorRow;
+        private void MoveRight() => ++table.CursorColumn;
     }
 }
