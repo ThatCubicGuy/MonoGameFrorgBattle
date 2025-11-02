@@ -37,6 +37,13 @@
 /processorParam:TextureFormat=Color
 /build:Big_chungus.png
 
+#begin File.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:File.spritefont;MenuFont.spritefont
+
 #begin frorgbattle-ui-draft-1.png
 /importer:TextureImporter
 /processor:TextureProcessor
