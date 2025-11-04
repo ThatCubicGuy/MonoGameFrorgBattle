@@ -20,7 +20,7 @@ namespace FrogBattle.Characters
         })
         {
             Pronouns = Registry.CommonPronouns.HE_HIM;
-            PassiveEffects.Add(new CritRateAndDamageBoost());
+            PassiveEffects.Add(new CritRateAndDamageBoost(this));
             DamageDealt += DoTEnergyRecharge;
             DamageDealt += BlessedDoTBoost;
             EffectApplied += BlessedDoTApplication;
@@ -33,11 +33,12 @@ namespace FrogBattle.Characters
         // Passives
         private class CritRateAndDamageBoost : PassiveEffect
         {
-            public CritRateAndDamageBoost() : base()
+            public CritRateAndDamageBoost(Character src) : base()
             {
                 Condition = new EffectsTypeCount<DamageOverTime>(new(Min: 0, Max: 10));
                 AddEffect(new Modifier(0.02, Stats.CritRate, Operators.AddValue));
                 AddEffect(new Modifier(0.05, Stats.CritDamage, Operators.AddValue));
+                Source = src;
             }
         }
 
@@ -159,6 +160,19 @@ namespace FrogBattle.Characters
                 6 => new Devastate(this, target),
                 _ => throw InvalidAbility(selector)
             };
+        }
+
+        public override void LoadAbilities(Character target)
+        {
+            abilityList.Clear();
+            abilityList.Add(new SkipTurn(this));
+            abilityList.Add(new Pathetic(this, target));
+            abilityList.Add(new ShadowFlare(this, target));
+            abilityList.Add(new Sacrifice(this));
+            abilityList.Add(new Memory(this, target));
+            abilityList.Add(new ThisEndsNow(this, target));
+            abilityList.Add(new Devastate(this, target));
+            abilityList.TrimExcess();
         }
 
         #region Abilities
@@ -439,6 +453,15 @@ namespace FrogBattle.Characters
                 2 => new Court(this, target),
                 _ => throw new ArgumentOutOfRangeException(nameof(selector), $"Invalid ability number: {selector}"),
             };
+        }
+
+        public override void LoadAbilities(Character target)
+        {
+            abilityList.Clear();
+            abilityList.Add(new SkipTurn(this));
+            abilityList.Add(new Kneel(this, target));
+            abilityList.Add(new Court(this, target));
+            abilityList.TrimExcess();
         }
 
         #region Abilities

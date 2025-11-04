@@ -65,6 +65,17 @@ namespace FrogBattle.Characters
                 _ => throw InvalidAbility(selector)
             };
         }
+
+        public override void LoadAbilities(Character target)
+        {
+            abilityList.Clear();
+            abilityList.Add(new SkipTurn(this));
+            abilityList.Add(new ThrowGrenade(this, target));
+            abilityList.Add(new UpKick(this, target));
+            abilityList.Add(new ClusterLauncher(this, target));
+            abilityList.Add(new MortarVolley(this, target));
+            abilityList.TrimExcess();
+        }
         #region Abilities
         public class ThrowGrenade : BlastAttack, ClusterTrigger
         {

@@ -107,14 +107,13 @@ namespace FrogBattle.Classes
             return totalValue;
         }
     }
-    internal static class FighterExtensions
+    internal static class EffectExtensions
     {
         public static string ToConsoleString(this Character src, string format)
         {
             throw new NotImplementedException();
         }
         #region Effect Methods
-
 
         // Actives
 
@@ -144,6 +143,16 @@ namespace FrogBattle.Classes
         public static double GetActivesValue(this ICanHaveActives ch, Stats stat)
         {
             return ch.GetActives(stat).Sum((x) => x.GetModifier(stat).Amount * x.Stacks);
+        }
+        /// <summary>
+        /// Determines whether an active effect is currently attached to the <see cref="ICanHaveActives"/> entity.
+        /// </summary>
+        /// <typeparam name="TEffect"></typeparam>
+        /// <param name="ch"></param>
+        /// <returns></returns>
+        public static bool EffectIsActive<TEffect>(this ICanHaveActives ch) where TEffect : StatusEffect
+        {
+            return ch.ActiveEffects.OfType<TEffect>().Any();
         }
 
         // Passives

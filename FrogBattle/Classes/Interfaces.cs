@@ -55,7 +55,11 @@ namespace FrogBattle.Classes
         List<PassiveEffect> PassiveEffects { get; }
     }
 
-    internal interface ISupportsEffects : ICanHaveActives, ICanHavePassives;
+    internal interface ISupportsEffects : ICanHaveActives, ICanHavePassives
+    {
+        void AddEffect(IAttributeModifier effect);
+        void RemoveEffect(IAttributeModifier effect);
+    }
 
     internal interface IAttack : IHasTarget
     {

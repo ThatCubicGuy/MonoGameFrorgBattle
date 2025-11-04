@@ -13,7 +13,7 @@ namespace FrogBattle.Characters
 
         private void GuiltProtocolCritDamageBuff(object sender, Damage.Snapshot e)
         {
-            if (e.IsCrit && EffectIsActive<GuiltProtocol.Buff>())
+            if (e.IsCrit && this.EffectIsActive<GuiltProtocol.Buff>())
             {
                 AddEffect(new GuiltProtocol.Buff());
             }
@@ -27,11 +27,23 @@ namespace FrogBattle.Characters
                 1 => new AlphaProtocol(this),
                 2 => new GuiltProtocol(this),
                 3 => new BlossomProtocol(this, target),
-                4 => new NightmareProtocol(this),
-                5 => new DesireProtocol(this, target),
-                6 => new DarkwaterProtocol(this, target),
+                //4 => new NightmareProtocol(this),
+                //5 => new DesireProtocol(this, target),
+                //6 => new DarkwaterProtocol(this, target),
                 _ => throw InvalidAbility(selector)
             };
+        }
+
+        public override void LoadAbilities(Character target)
+        {
+            abilityList.Clear();
+            abilityList.Add(new SkipTurn(this));
+            abilityList.Add(new AlphaProtocol(this));
+            abilityList.Add(new GuiltProtocol(this));
+            abilityList.Add(new BlossomProtocol(this, target));
+            //abilityList.Add(new NightmareProtocol(this));
+            //abilityList.Add(new DesireProtocol(this));
+            //abilityList.Add(new DarkwaterProtocol(this));
         }
 
         #region Abilities

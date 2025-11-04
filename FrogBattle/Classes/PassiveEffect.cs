@@ -17,7 +17,7 @@ namespace FrogBattle.Classes
         {
             _uid = GetType();
         }
-        public Character Source { get; }
+        public Character Source { get; init; }
         public Character Target { get => Source; }
         public Condition Condition { protected get; init; }
         public uint GetStacks(Character target) => target == null ? 0 : Condition.Get(target);

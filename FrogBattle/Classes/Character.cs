@@ -18,6 +18,7 @@ namespace FrogBattle.Classes
         protected double CurrentMana;
         protected double CurrentEnergy = 0;
         public bool downed = false;
+        protected List<Ability> abilityList;
 
         protected static ArgumentOutOfRangeException InvalidAbility(int selector) => new(nameof(selector), $"Invalid ability number: {selector}");
 
@@ -122,6 +123,7 @@ namespace FrogBattle.Classes
         public Character LeftTeammate => PositionInTeam != 0 ? Team.ElementAt(PositionInTeam - 1) : null;
         public Character RightTeammate => PositionInTeam != Team.Count - 1 ? Team.ElementAt(PositionInTeam + 1) : null;
         public required List<Character> EnemyTeam { get; init; }
+        public int AbilityCount => abilityList.Count;
 
         public List<StatusEffect> ActiveEffects { get; } = [];
         public List<PassiveEffect> PassiveEffects { get; } = [];
@@ -444,10 +446,6 @@ namespace FrogBattle.Classes
                     throw new ArgumentException($"Invalid effect type: {effect.GetType()} (not a StatusEffect nor PassiveEffect)", nameof(effect));
             }
         }
-        public bool EffectIsActive<TEffect>() where TEffect : StatusEffect
-        {
-            return ActiveEffects.OfType<TEffect>().Any();
-        }
         public void DealDamage(Damage.Snapshot damage)
         {
             DamageDealt?.Invoke(this, damage);
@@ -471,8 +469,7 @@ namespace FrogBattle.Classes
         }
         public uint TakeBarrierDamage(Damage.Snapshot damage)
         {
-            Barrier -= 1;
-            return Barrier;
+            return Barrier -= 1;
         }
         public double TakeShieldDamage(Damage.Snapshot damage)
         {
@@ -520,5 +517,6 @@ namespace FrogBattle.Classes
             PoolChanged?.Invoke(null, change);
         }
         public abstract Ability SelectAbility(Character target, int selector);
+        public abstract void LoadAbilities(Character target);
     }
 }

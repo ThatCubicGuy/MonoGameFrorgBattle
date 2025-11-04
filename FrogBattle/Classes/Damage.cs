@@ -1,10 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.NetworkInformation;
-using System.Text;
-using System.Threading.Tasks;
-using static FrogBattle.Classes.StatusEffect;
 
 namespace FrogBattle.Classes
 {
@@ -24,7 +18,8 @@ namespace FrogBattle.Classes
             Target = target;
             baseAmount = amount;
             Info = info;
-            if (info.CanCrit) Crit = source.IsCrit(target);
+            if (!(source is null || info is null)
+                && info.CanCrit) Crit = source.IsCrit(target);
             else Crit = false;
         }
         /// <summary>
@@ -73,7 +68,8 @@ namespace FrogBattle.Classes
         {
             public void Take(double ratio = 1) => Target.TakeDamage(this with { Amount = Amount * ratio });
         }
-        public static readonly Damage Missed = new MissedDamage();
+        public static readonly Damage Missed = null;
+        // uuuuuuuuugh
         public sealed class MissedDamage : Damage
         {
             public MissedDamage() : base(null, null, 0, null) { }
