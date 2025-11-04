@@ -1,19 +1,23 @@
-﻿using Microsoft.Xna.Framework;
+﻿using FrogBattle.UI;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
 
-namespace FrogBattle.UI
+namespace FrogBattle.States
 {
-    internal class MenuState
+    internal class MenuState : IState
     {
         private readonly Dictionary<Keys, bool> inactiveLastFrame = [];
         private readonly SelectableTable table;
+        private int _idCounter;
         public MenuState(SelectableTable table)
         {
             this.table = table;
         }
+
+        public int GetId() => _idCounter++;
+
         public void Update()
         {
             CheckKey(Keys.W, MoveUp);
@@ -25,6 +29,16 @@ namespace FrogBattle.UI
             CheckKey(Keys.D, MoveRight);
             CheckKey(Keys.Right, MoveRight);
         }
+
+        public void Draw(SpriteBatch spriteBatch)
+        {
+            foreach (Sprite box in table)
+            {
+                box.Draw(spriteBatch);
+            }
+            table.Cursor.Draw(spriteBatch);
+        }
+
         private void CheckKey(Keys key, Action action)
         {
 

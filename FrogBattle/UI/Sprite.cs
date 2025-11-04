@@ -13,6 +13,10 @@ namespace FrogBattle.UI
             this.position = position;
         }
         public Sprite(Texture2D texture, Point position) : this(texture, new Rectangle(position, texture.Bounds.Size)) { }
+        public virtual void Draw(SpriteBatch spriteBatch)
+        {
+            spriteBatch.Draw(texture, position, Color.White);
+        }
     }
 
     public class ColoredSprite : Sprite
@@ -23,5 +27,9 @@ namespace FrogBattle.UI
             this.color = color;
         }
         public ColoredSprite(Texture2D texture, Point position, Color color) : this(texture, new Rectangle(position, texture.Bounds.Size), color) { }
+        public override void Draw(SpriteBatch spriteBatch)
+        {
+            spriteBatch.Draw(texture, position, color);
+        }
     }
 }

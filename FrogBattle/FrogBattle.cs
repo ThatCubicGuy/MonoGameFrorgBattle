@@ -1,4 +1,6 @@
-﻿using Microsoft.Xna.Framework;
+﻿using FrogBattle.States;
+using FrogBattle.UI;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
@@ -11,6 +13,7 @@ namespace FrogBattle
     {
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
+        private States.IState currentState;
 
         static readonly int WindowWidth = 640;
         static readonly int WindowHeight = 360;
@@ -20,8 +23,7 @@ namespace FrogBattle
         bool queueFullscreenValue = false;
         Dictionary<Keys, bool> ActiveLastFrame = [];
 
-        private Texture2D battleUI;
-        public readonly List<UI.ColoredSprite> Sprites = [];
+        private Texture2D background;
 
         static readonly Random random = new();
         /// <summary>
@@ -51,12 +53,19 @@ namespace FrogBattle
             base.Initialize();
         }
 
+        private Texture2D boxTexture;
+        private Texture2D selectedBoxTexture;
+
         protected override void LoadContent()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
 
             // TODO: use this.Content to load your game content here
-            battleUI = Content.Load<Texture2D>("frorgbattle-ui-draft-2");
+            background = Content.Load<Texture2D>("frorgbattle-ui-draft-2");
+            boxTexture = Content.Load<Texture2D>("frorgbattle-ability-box-draft");
+            selectedBoxTexture = Content.Load<Texture2D>("frorgbattle-ability-box-selected-winxp-draft");
+            var table = new SelectableTable(Point.Zero, new(3, 2), boxTexture, new(15), selectedBoxTexture, Point.Zero);
+            currentState = new MenuState(table);
         }
 
         protected override void Update(GameTime gameTime)
@@ -73,9 +82,9 @@ namespace FrogBattle
             }
             else ActiveLastFrame[Keys.Space] = false;
 
-                // TODO: Add your update logic here
+            currentState.Update();
 
-                base.Update(gameTime);
+            base.Update(gameTime);
         }
 
         protected override void Draw(GameTime gameTime)
@@ -84,7 +93,7 @@ namespace FrogBattle
             
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
 
-            Sprites.ForEach(sprite => _spriteBatch.Draw(sprite.texture, sprite.position, sprite.color));
+            currentState.Draw(_spriteBatch);
 
             _spriteBatch.End();
 
