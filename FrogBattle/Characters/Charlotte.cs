@@ -19,7 +19,7 @@ namespace FrogBattle.Characters
             }
         }
 
-        public override Ability SelectAbility(Character target, int selector)
+        public override Ability LoadAbility(Character target, int selector)
         {
             return selector switch
             {
@@ -44,6 +44,7 @@ namespace FrogBattle.Characters
             //abilityList.Add(new NightmareProtocol(this));
             //abilityList.Add(new DesireProtocol(this));
             //abilityList.Add(new DarkwaterProtocol(this));
+            abilityList.TrimExcess();
         }
 
         #region Abilities

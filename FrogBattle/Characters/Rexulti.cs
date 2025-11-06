@@ -147,7 +147,7 @@ namespace FrogBattle.Characters
             }
         }
 
-        public override Ability SelectAbility(Character target, int selector)
+        public override Ability LoadAbility(Character target, int selector)
         {
             return selector switch
             {
@@ -173,6 +173,16 @@ namespace FrogBattle.Characters
             abilityList.Add(new ThisEndsNow(this, target));
             abilityList.Add(new Devastate(this, target));
             abilityList.TrimExcess();
+
+            abilityNames.Clear();
+            abilityNames.Add(typeof(SkipTurn).Name.FirstLower());
+            abilityNames.Add(typeof(Pathetic).Name.FirstLower());
+            abilityNames.Add(typeof(ShadowFlare).Name.FirstLower());
+            abilityNames.Add(typeof(Sacrifice).Name.FirstLower());
+            abilityNames.Add(typeof(Memory).Name.FirstLower());
+            abilityNames.Add(typeof(ThisEndsNow).Name.FirstLower());
+            abilityNames.Add(typeof(Devastate).Name.FirstLower());
+            abilityNames.TrimExcess();
         }
 
         #region Abilities
@@ -444,7 +454,7 @@ namespace FrogBattle.Characters
         {
 
         }
-        public override Ability SelectAbility(Character target, int selector)
+        public override Ability LoadAbility(Character target, int selector)
         {
             return selector switch
             {

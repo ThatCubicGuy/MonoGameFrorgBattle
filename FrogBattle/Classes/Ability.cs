@@ -16,7 +16,7 @@ namespace FrogBattle.Classes
             Properties = props;
         }
         public Character Parent { get; }
-        public Character Target { get; }
+        public Character Target { get; private set; }
         public AbilityInfo Properties { get; init; }
         public Dictionary<Pools, Cost> Costs { get; } = [];
         public Dictionary<Pools, Reward> Rewards { get; } = [];
@@ -52,19 +52,16 @@ namespace FrogBattle.Classes
             }
             return true;
         }
+        public bool TryUse(Character target)
+        {
+            Target = target;
+            return TryUse();
+        }
         /// <summary>
         /// Use the ability.
         /// </summary>
         /// <returns>True if used successfully, false if missed.</returns>
         private protected abstract bool Use();
-        /// <summary>
-        /// Display the function. Idfk how you animate shit. But you do or something. So have fun.
-        /// </summary>
-        /// <param name="args"></param>
-        public virtual void Display(object[] args)
-        {
-
-        }
         /// <summary>
         /// Creates untranslated flavour text keys.
         /// </summary>
@@ -367,6 +364,7 @@ namespace FrogBattle.Classes
             yield break;
         }
     }
+
     internal abstract class SingleTargetAttack(Character source, Character target, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos) : Ability(source, target, properties), IAttack, IAppliesEffect
     {
         public AttackInfo AttackInfo { get; } = attackInfo;

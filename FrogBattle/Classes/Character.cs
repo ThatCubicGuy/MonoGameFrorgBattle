@@ -1,11 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
@@ -292,7 +287,7 @@ namespace FrogBattle.Classes
             if (downed) return;
             if (Stun > 0)
             {
-                ParentBattle.BattleText.AppendLine(Localization.Translate(Generic.Stun, Name, Stun));
+                AddBattleText(Generic.Stun, Name, Stun);
             }
             else
             {
@@ -516,7 +511,11 @@ namespace FrogBattle.Classes
             }
             PoolChanged?.Invoke(null, change);
         }
-        public abstract Ability SelectAbility(Character target, int selector);
+        public Ability SelectAbility(Character target, int selector)
+        {
+            return abilityList[selector];
+        }
+        public abstract Ability LoadAbility(Character target, int selector);
         public abstract void LoadAbilities(Character target);
     }
 }

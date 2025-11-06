@@ -53,7 +53,7 @@ namespace FrogBattle.Characters
             }
         }
 
-        public override Ability SelectAbility(Character target, int selector)
+        public override Ability LoadAbility(Character target, int selector)
         {
             return selector switch
             {

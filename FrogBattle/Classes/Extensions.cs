@@ -310,7 +310,7 @@ namespace FrogBattle.Classes
                 try
                 {
                     int selector = int.Parse(Console.ReadLine());
-                    return src.SelectAbility(src.EnemyTeam.Single(), selector);
+                    return src.LoadAbility(src.EnemyTeam.Single(), selector);
                 }
                 catch (Exception ex)
                 {
