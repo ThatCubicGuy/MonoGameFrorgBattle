@@ -19,28 +19,13 @@ namespace FrogBattle.Characters
             }
         }
 
-        public override Ability LoadAbility(Character target, int selector)
-        {
-            return selector switch
-            {
-                0 => new SkipTurn(this),
-                1 => new AlphaProtocol(this),
-                2 => new GuiltProtocol(this),
-                3 => new BlossomProtocol(this, target),
-                //4 => new NightmareProtocol(this),
-                //5 => new DesireProtocol(this, target),
-                //6 => new DarkwaterProtocol(this, target),
-                _ => throw InvalidAbility(selector)
-            };
-        }
-
         public override void LoadAbilities(Character target)
         {
             abilityList.Clear();
             abilityList.Add(new SkipTurn(this));
             abilityList.Add(new AlphaProtocol(this));
             abilityList.Add(new GuiltProtocol(this));
-            abilityList.Add(new BlossomProtocol(this, target));
+            abilityList.Add(new BlossomProtocol(this));
             //abilityList.Add(new NightmareProtocol(this));
             //abilityList.Add(new DesireProtocol(this));
             //abilityList.Add(new DarkwaterProtocol(this));
@@ -65,7 +50,7 @@ namespace FrogBattle.Characters
                 }
             }
             private static readonly EffectInfo[] effectInfos = [new EffectInfo<Buff>()];
-            public AlphaProtocol(Character self) : base(self, self, new(), effectInfos)
+            public AlphaProtocol(Character self) : base(self, new(), effectInfos)
             {
                 WithGenericManaCost(16);
             }
@@ -107,7 +92,7 @@ namespace FrogBattle.Characters
                 }
             }
             private static readonly EffectInfo[] effectInfos = [new EffectInfo<Buff>()];
-            public GuiltProtocol(Character self) : base(self, self, new(), effectInfos)
+            public GuiltProtocol(Character self) : base(self self, new(), effectInfos)
             {
                 WithGenericManaCost(26);
             }
@@ -127,7 +112,7 @@ namespace FrogBattle.Characters
                 Scalar = Stats.MaxHp,
                 HitRate = 1
             };
-            public BlossomProtocol(Character source, Character mainTarget) : base(source, mainTarget, new(), AttackProps, null, AttackProps.Ratio * 0.65)
+            public BlossomProtocol(Character source) : base(source, new(), AttackProps, null, AttackProps.Ratio * 0.65)
             {
                 WithGenericManaCost(28, 0.80);
             }

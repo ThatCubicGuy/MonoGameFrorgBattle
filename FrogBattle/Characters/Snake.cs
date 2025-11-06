@@ -53,27 +53,14 @@ namespace FrogBattle.Characters
             }
         }
 
-        public override Ability LoadAbility(Character target, int selector)
-        {
-            return selector switch
-            {
-                0 => new SkipTurn(this),
-                1 => new ThrowGrenade(this, target),
-                2 => new UpKick(this, target),
-                3 => new ClusterLauncher(this, target),
-                4 => new MortarVolley(this, target),
-                _ => throw InvalidAbility(selector)
-            };
-        }
-
         public override void LoadAbilities(Character target)
         {
             abilityList.Clear();
             abilityList.Add(new SkipTurn(this));
-            abilityList.Add(new ThrowGrenade(this, target));
-            abilityList.Add(new UpKick(this, target));
-            abilityList.Add(new ClusterLauncher(this, target));
-            abilityList.Add(new MortarVolley(this, target));
+            abilityList.Add(new ThrowGrenade(this));
+            abilityList.Add(new UpKick(this));
+            abilityList.Add(new ClusterLauncher(this));
+            abilityList.Add(new MortarVolley(this));
             abilityList.TrimExcess();
         }
         #region Abilities
@@ -96,7 +83,7 @@ namespace FrogBattle.Characters
                 HitRate = 0.80,
                 IndependentHitRate = false
             };
-            public ThrowGrenade(Character source, Character target) : base(source, target, AbilityProps, AttackProps, null, 0.5)
+            public ThrowGrenade() : base(AbilityProps, AttackProps, null, 0.5)
             {
                 Falloff = 0.5;
                 WithGenericManaCost(13);
@@ -118,15 +105,15 @@ namespace FrogBattle.Characters
                 Scalar = Stats.Def,
                 HitRate = 1
             };
-            public UpKick(Character source, Character target) : base(source, target, new(), AttackProps, null)
+            public UpKick(Character source) : base(source, new(), AttackProps, null)
             {
                 WithGenericManaCost(14);
-                WithReward(new(target, source, 0.1 * source.GetStat(Stats.MaxEnergy), Pools.Energy, Operators.AddValue));
+                WithReward(new(source, source, 0.1 * source.GetStat(Stats.MaxEnergy), Pools.Energy, Operators.AddValue));
             }
         }
         public class ClusterLauncher : FollowUpSetup
         {
-            public class ClusterGrenade(Character source, Character target) : SingleTargetAttack(source, target, new(), AttackProps, null), MortarTrigger
+            public class ClusterGrenade(Character source) : SingleTargetAttack(source, new(), AttackProps, null), MortarTrigger
             {
                 public static AttackInfo AttackProps => new()
                 {
@@ -145,7 +132,7 @@ namespace FrogBattle.Characters
                     CanCrit = true
                 };
             }
-            public ClusterLauncher(Character source, Character target) : base(source, target, new(), LimitedFollowUp<ClusterTrigger>(new ClusterGrenade(source, target), 1))
+            public ClusterLauncher(Character source) : base(source, new(), LimitedFollowUp<ClusterTrigger>(new ClusterGrenade(source), 1))
             {
                 WithRequirement(new StatThresholdRequirement(this, source.Base[Stats.Atk], null, Stats.Atk, Operators.AddValue));
                 WithGenericManaCost(28);
@@ -153,7 +140,7 @@ namespace FrogBattle.Characters
         }
         public class MortarVolley : FollowUpSetup
         {
-            public class MortarShot(Character source, Character target) : BounceAttack(source, target, new(), AttackProps, null, 5)
+            public class MortarShot(Character source) : BounceAttack(source, new(), AttackProps, null, 5)
             {
                 private static readonly DamageInfo DamageProps = new()
                 {
@@ -171,7 +158,7 @@ namespace FrogBattle.Characters
                     HitRate = 0.85
                 };
             }
-            public MortarVolley(Character source, Character target) : base(source, target, new(), LimitedFollowUp<MortarTrigger>(new MortarShot(source, target), 3))
+            public MortarVolley(Character source) : base(source, new(), LimitedFollowUp<MortarTrigger>(new MortarShot(source), 3))
             {
                 WithRequirement(new StatThresholdRequirement(this, source.Base[Stats.Def], null, Stats.Def, Operators.AddValue));
                 WithGenericManaCost(24);

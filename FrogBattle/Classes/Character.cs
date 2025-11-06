@@ -515,7 +515,10 @@ namespace FrogBattle.Classes
         {
             return abilityList[selector];
         }
-        public abstract Ability LoadAbility(Character target, int selector);
+        public Ability LoadAbility(Character target, int selector)
+        {
+            return abilityList[selector];
+        }
         public abstract void LoadAbilities(Character target);
     }
 }

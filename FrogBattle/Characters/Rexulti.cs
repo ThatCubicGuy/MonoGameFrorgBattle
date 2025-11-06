@@ -147,42 +147,17 @@ namespace FrogBattle.Characters
             }
         }
 
-        public override Ability LoadAbility(Character target, int selector)
-        {
-            return selector switch
-            {
-                0 => new SkipTurn(this),
-                1 => new Pathetic(this, target),
-                2 => new ShadowFlare(this, target),
-                3 => new Sacrifice(this),
-                4 => new Memory(this, target),
-                5 => new ThisEndsNow(this, target),
-                6 => new Devastate(this, target),
-                _ => throw InvalidAbility(selector)
-            };
-        }
-
         public override void LoadAbilities(Character target)
         {
             abilityList.Clear();
             abilityList.Add(new SkipTurn(this));
-            abilityList.Add(new Pathetic(this, target));
-            abilityList.Add(new ShadowFlare(this, target));
+            abilityList.Add(new Pathetic(this));
+            abilityList.Add(new ShadowFlare(this));
             abilityList.Add(new Sacrifice(this));
-            abilityList.Add(new Memory(this, target));
-            abilityList.Add(new ThisEndsNow(this, target));
-            abilityList.Add(new Devastate(this, target));
+            abilityList.Add(new Memory(this));
+            abilityList.Add(new ThisEndsNow(this));
+            abilityList.Add(new Devastate(this));
             abilityList.TrimExcess();
-
-            abilityNames.Clear();
-            abilityNames.Add(typeof(SkipTurn).Name.FirstLower());
-            abilityNames.Add(typeof(Pathetic).Name.FirstLower());
-            abilityNames.Add(typeof(ShadowFlare).Name.FirstLower());
-            abilityNames.Add(typeof(Sacrifice).Name.FirstLower());
-            abilityNames.Add(typeof(Memory).Name.FirstLower());
-            abilityNames.Add(typeof(ThisEndsNow).Name.FirstLower());
-            abilityNames.Add(typeof(Devastate).Name.FirstLower());
-            abilityNames.TrimExcess();
         }
 
         #region Abilities
@@ -206,7 +181,7 @@ namespace FrogBattle.Characters
                 Chance = 1,
                 ChanceType = ChanceTypes.Base
             }];
-            public Pathetic(Character source, Character target) : base(source, target, new(), AttackProps, EffectProps)
+            public Pathetic(Character source) : base(source, new(), AttackProps, EffectProps)
             {
                 WithGenericManaCost(15);
             }
@@ -230,7 +205,7 @@ namespace FrogBattle.Characters
                 Chance = 0.65,
                 ChanceType = ChanceTypes.Base
             }];
-            public ShadowFlare(Character source, Character target) : base(source, target, new(), AttackProps, EffectProps,
+            public ShadowFlare(Character source) : base(source, new(), AttackProps, EffectProps,
                 count: (uint)Math.Floor(BattleManager.RNG * 5 + 1))
             {
                 WithGenericManaCost(20);
@@ -250,7 +225,7 @@ namespace FrogBattle.Characters
                 public override StatusEffect Init() => AddEffect(new Modifier(350, Stats.Atk, Operators.AddValue));
             }
             private static readonly EffectInfo[] EffectProps = [new EffectInfo<AtkBuff>()];
-            public Sacrifice(Character source) : base(source, source, new(), EffectProps)
+            public Sacrifice(Character source) : base(source, new(), EffectProps)
             {
                 WithGenericManaCost(20, 0.5);
                 WithGenericCost(new(this, 0.01, Pools.Hp, Operators.MultiplyBase));
@@ -271,7 +246,7 @@ namespace FrogBattle.Characters
                 Ratio = 5.66,
                 Scalar = Stats.Atk
             };
-            public Memory(Character source, Character target) : base(source, target, new(), AttackProps, null)
+            public Memory(Character source) : base(source, new(), AttackProps, null)
             {
                 WithGenericManaCost(40);
             }
@@ -295,14 +270,14 @@ namespace FrogBattle.Characters
                 ChanceType = ChanceTypes.Base
             }];
 
-            public ThisEndsNow(Character source, Character target) : base(source, target, new(), AttackProps, EffectProps)
+            public ThisEndsNow(Character source) : base(source, new(), AttackProps, EffectProps)
             {
                 WithGenericManaCost(34);
             }
         }
         public class Devastate : Ability
         {
-            private class DevastateExplosion(Character source, Character target) : AoEAttack(source, target, new(), AttackProps, null)
+            private class DevastateExplosion(Character source) : AoEAttack(source, new(), AttackProps, null)
             {
                 private static readonly DamageInfo DamageProps = new()
                 {
@@ -317,7 +292,7 @@ namespace FrogBattle.Characters
                     Scalar = Stats.Atk
                 };
             }
-            private class DevastateSlash1(Character source, Character target) : SingleTargetAttack(source, target, new(), AttackProps, EffectProps)
+            private class DevastateSlash1(Character source) : SingleTargetAttack(source, new(), AttackProps, EffectProps)
             {
                 private static readonly DamageInfo DamageProps = new()
                 {
@@ -338,7 +313,7 @@ namespace FrogBattle.Characters
                     ChanceType = ChanceTypes.Base
                 }];
             }
-            private class DevastateSlash2(Character source, Character target) : SingleTargetAttack(source, target, new(), AttackProps, EffectProps)
+            private class DevastateSlash2(Character source) : SingleTargetAttack(source, new(), AttackProps, EffectProps)
             {
                 private static readonly DamageInfo DamageProps = new()
                 {
@@ -359,7 +334,7 @@ namespace FrogBattle.Characters
                     ChanceType = ChanceTypes.Base
                 }];
             }
-            private class DevastateSlash3(Character source, Character target) : SingleTargetAttack(source, target, new(), AttackProps, EffectProps)
+            private class DevastateSlash3(Character source) : SingleTargetAttack(source, new(), AttackProps, EffectProps)
             {
                 private static readonly DamageInfo DamageProps = new()
                 {
@@ -396,7 +371,7 @@ namespace FrogBattle.Characters
                     ChanceType = ChanceTypes.Base
                 }];
             }
-            public Devastate(Character source, Character target) : base(source, target, new())
+            public Devastate(Character source) : base(source, new())
             {
                 WithBurstCost();
             }
@@ -412,19 +387,19 @@ namespace FrogBattle.Characters
                 // Ability start text
                 AddText(text[TextTypes.Start], Parent, Target);
                 // Explosion
-                var explosion = new DevastateExplosion(Parent, Target);
-                if (!explosion.TryUse()) return false;
+                var explosion = new DevastateExplosion(Parent);
+                if (!explosion.TryUse(Target)) return false;
                 // Ability continuation text
                 AddText(text[TextTypes.Damage1], Parent, Target);
                 // 3 Slashes
-                var slashset1 = new DevastateSlash1(Parent, Target);
-                bool success1 = slashset1.TryUse() && slashset1.TryUse() && slashset1.TryUse();
+                var slashset1 = new DevastateSlash1(Parent);
+                bool success1 = slashset1.TryUse(Target) && slashset1.TryUse(Target) && slashset1.TryUse(Target);
                 // 2 Slashes
-                var slashset2 = new DevastateSlash2(Parent, Target);
-                bool success2 = slashset2.TryUse() && slashset2.TryUse();
+                var slashset2 = new DevastateSlash2(Parent);
+                bool success2 = slashset2.TryUse(Target) && slashset2.TryUse(Target);
                 // 1 Final slash
-                var slash3 = new DevastateSlash3(Parent, Target);
-                bool success3 = slash3.TryUse();
+                var slash3 = new DevastateSlash3(Parent);
+                bool success3 = slash3.TryUse(Target);
                 // Ability end text
                 AddText(text[TextTypes.End], Parent, Target, finalDamage);
                 Target.DamageTaken -= checkTotalDamage;
@@ -454,23 +429,13 @@ namespace FrogBattle.Characters
         {
 
         }
-        public override Ability LoadAbility(Character target, int selector)
-        {
-            return selector switch
-            {
-                0 => new SkipTurn(this),
-                1 => new Kneel(this, target),
-                2 => new Court(this, target),
-                _ => throw new ArgumentOutOfRangeException(nameof(selector), $"Invalid ability number: {selector}"),
-            };
-        }
 
         public override void LoadAbilities(Character target)
         {
             abilityList.Clear();
             abilityList.Add(new SkipTurn(this));
-            abilityList.Add(new Kneel(this, target));
-            abilityList.Add(new Court(this, target));
+            abilityList.Add(new Kneel(this));
+            abilityList.Add(new Court(this));
             abilityList.TrimExcess();
         }
 
@@ -505,7 +470,7 @@ namespace FrogBattle.Characters
                     return [.. result];
                 }
             }
-            public Kneel(Character source, Character target) : base(source, target, new(), AttackProps, EffectProps)
+            public Kneel(Character source) : base(source, new(), AttackProps, EffectProps)
             {
                 WithGenericManaCost(21);
             }
@@ -527,7 +492,7 @@ namespace FrogBattle.Characters
                 [
                     new EffectInfo<DefenseDown>(Chance: 1.00, ChanceType: ChanceTypes.Base)
                 ];
-            public Court(Character source, Character target) : base(source, target, new(), EffectProps)
+            public Court(Character source) : base(source, new(), EffectProps)
             {
                 WithGenericManaCost(19);
             }
@@ -546,7 +511,7 @@ namespace FrogBattle.Characters
                 Source = DamageSources.Attack,
                 CanCrit = true,
             };
-            public Dance(Character source, Character mainTarget) : base(source, mainTarget, new(), AttackProps, null, 3)
+            public Dance(Character source) : base(source, new(), AttackProps, null, 3)
             {
                 WithGenericManaCost(29);
             }

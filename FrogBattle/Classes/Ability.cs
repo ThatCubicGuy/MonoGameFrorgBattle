@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -9,14 +8,10 @@ namespace FrogBattle.Classes
     // rewrite #7 gazillion lmfao
     internal abstract class Ability : IHasTarget, ITrigger
     {
-        public Ability(Character parent, Character target, AbilityInfo props)
+        public Ability(AbilityInfo props)
         {
-            Parent = parent;
-            Target = target;
             Properties = props;
         }
-        public Character Parent { get; }
-        public Character Target { get; private set; }
         public AbilityInfo Properties { get; init; }
         public Dictionary<Pools, Cost> Costs { get; } = [];
         public Dictionary<Pools, Reward> Rewards { get; } = [];
@@ -26,7 +21,7 @@ namespace FrogBattle.Classes
         /// Whether the ability was used successfully or missed does not influence the return value.
         /// </summary>
         /// <returns>True if the turn can continue, false otherwise.</returns>
-        public bool TryUse()
+        public bool TryUse(AbilityInstance ctx)
         {
             foreach (var item in Requirements)
             {
@@ -43,25 +38,20 @@ namespace FrogBattle.Classes
             }
             foreach (var item in Costs)
             {
-                Parent.ApplyChange(item.Value);
+                ctx.Parent.ApplyChange(item.Value);
             }
-            if (!Use()) return true;
+            if (!Use(ctx)) return true;
             foreach (var item in Rewards)
             {
                 Parent.ApplyChange(item.Value);
             }
             return true;
         }
-        public bool TryUse(Character target)
-        {
-            Target = target;
-            return TryUse();
-        }
         /// <summary>
         /// Use the ability.
         /// </summary>
         /// <returns>True if used successfully, false if missed.</returns>
-        private protected abstract bool Use();
+        private protected abstract bool Use(AbilityInstance ctx);
         /// <summary>
         /// Creates untranslated flavour text keys.
         /// </summary>
@@ -228,6 +218,21 @@ namespace FrogBattle.Classes
             public override object GetKey() => Pool;
         }
     }
+    // rewrite #8 gazillion babyyyyy
+    internal sealed class AbilityInstance
+    {
+        public Character Parent { get; }
+        public Character Target { get; }
+
+        private readonly Ability _ability;
+        public AbilityInstance(Ability ability, Character user, Character target)
+        {
+            _ability = ability;
+            Parent = user;
+            Target = target;
+        }
+        public bool TryUse() => _ability.TryUse(this);
+    }
     // oh god
     internal abstract record class AbilityHelper(Character Parent, Character Target)
     {
@@ -365,7 +370,7 @@ namespace FrogBattle.Classes
         }
     }
 
-    internal abstract class SingleTargetAttack(Character source, Character target, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos) : Ability(source, target, properties), IAttack, IAppliesEffect
+    internal abstract class SingleTargetAttack(Character source, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos) : Ability(source, properties), IAttack, IAppliesEffect
     {
         public AttackInfo AttackInfo { get; } = attackInfo;
         public EffectInfo[] EffectInfos { get; } = effectInfos ?? [];
@@ -390,12 +395,12 @@ namespace FrogBattle.Classes
         }
     }
 
-    internal abstract class BlastAttack(Character source, Character mainTarget, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos, double falloff) : Ability(source, mainTarget, properties), IAttack, IAppliesEffect
+    internal abstract class BlastAttack(Character source, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos, double falloff) : Ability(source, properties), IAttack, IAppliesEffect
     {
         public double Falloff { get; init; } = falloff;
         public AttackInfo AttackInfo { get; } = attackInfo;
         public EffectInfo[] EffectInfos { get; } = effectInfos ?? [];
-        private protected override bool Use()
+        private protected override bool Use(AbilityInstance ctx)
         {
             // Get the list for flavour text
             var text = FlavourText();
@@ -422,7 +427,7 @@ namespace FrogBattle.Classes
         }
     }
 
-    internal abstract class BounceAttack(Character source, Character mainTarget, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos, uint count) : Ability(source, mainTarget, properties), IAttack, IAppliesEffect
+    internal abstract class BounceAttack(Character source, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos, uint count) : Ability(source, properties), IAttack, IAppliesEffect
     {
         public uint Count { get; } = count;
         public AttackInfo AttackInfo { get; } = attackInfo;
@@ -456,7 +461,7 @@ namespace FrogBattle.Classes
         }
     }
 
-    internal abstract class AoEAttack(Character source, Character mainTarget, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos) : Ability(source, mainTarget, properties), IAttack, IAppliesEffect
+    internal abstract class AoEAttack(Character source, AbilityInfo properties, AttackInfo attackInfo, EffectInfo[] effectInfos) : Ability(source, properties), IAttack, IAppliesEffect
     {
         public AttackInfo AttackInfo { get; } = attackInfo;
         public EffectInfo[] EffectInfos { get; } = effectInfos ?? [];
@@ -485,7 +490,7 @@ namespace FrogBattle.Classes
         }
     }
 
-    internal abstract class ApplyEffectOn(Character source, Character target, AbilityInfo properties, EffectInfo[] effectInfos) : Ability(source, target, properties), IAppliesEffect
+    internal abstract class ApplyEffectOn(Character source, AbilityInfo properties, EffectInfo[] effectInfos) : Ability(source, properties), IAppliesEffect
     {
         public EffectInfo[] EffectInfos { get; } = effectInfos;
         private protected override bool Use()
@@ -505,7 +510,7 @@ namespace FrogBattle.Classes
         }
     }
 
-    internal abstract class BuffTeam(Character source, AbilityInfo properties, EffectInfo[] effectInfos) : Ability(source, source, properties), IAppliesEffect
+    internal abstract class BuffTeam(Character source, AbilityInfo properties, EffectInfo[] effectInfos) : Ability(source, properties), IAppliesEffect
     {
         public EffectInfo[] EffectInfos { get; } = effectInfos;
         public List<Character> Targets { get => Target.Team; }
@@ -529,7 +534,7 @@ namespace FrogBattle.Classes
         }
     }
 
-    internal abstract class HealTarget(Character source, Character target, AbilityInfo properties, HealingInfo healingInfo, EffectInfo[] effectInfos) : Ability(source, target, properties), IHealing, IAppliesEffect
+    internal abstract class HealTarget(Character source, AbilityInfo properties, HealingInfo healingInfo, EffectInfo[] effectInfos) : Ability(source, properties), IHealing, IAppliesEffect
     {
         public HealingInfo HealingInfo { get; } = healingInfo;
         public EffectInfo[] EffectInfos { get; } = effectInfos ?? [];
@@ -554,7 +559,7 @@ namespace FrogBattle.Classes
         }
     }
 
-    internal abstract class HealTeam(Character source, AbilityInfo properties, HealingInfo healingInfo, EffectInfo[] effectInfos) : Ability(source, source, properties), IHealing, IAppliesEffect
+    internal abstract class HealTeam(Character source, AbilityInfo properties, HealingInfo healingInfo, EffectInfo[] effectInfos) : Ability(source, properties), IHealing, IAppliesEffect
     {
         public HealingInfo HealingInfo { get; } = healingInfo;
         public EffectInfo[] EffectInfos { get; } = effectInfos ?? [];
@@ -583,7 +588,7 @@ namespace FrogBattle.Classes
         }
     }
 
-    internal abstract class FollowUpSetup(Character source, Character target, AbilityInfo properties, params EventHandler<Ability>[] bonusEffects) : Ability(source, target, properties)
+    internal abstract class FollowUpSetup(Character source, AbilityInfo properties, params EventHandler<Ability>[] bonusEffects) : Ability(source, properties)
     {
         public EventHandler<Ability>[] BonusEffects { get; } = bonusEffects;
         private protected override bool Use()
@@ -601,7 +606,7 @@ namespace FrogBattle.Classes
 
     internal sealed class SkipTurn : Ability
     {
-        public SkipTurn(Character source) : base(source, source, new())
+        public SkipTurn(Character source) : base(source, new())
         {
             WithReward(new(source, source, 5, Pools.Mana, Operators.AddValue));
         }
