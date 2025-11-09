@@ -1,27 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FrogBattle.Classes
 {
     /// <summary>
     /// StatusEffects are attribute modifiers (that have to be attached to entities) that influence the entity's stat in some way, and some more. 
     /// </summary>
-    internal abstract class StatusEffect : IAttributeModifier
+    internal abstract class StatusEffectDefinition
     {
-        public static readonly StatusEffect Empty = new EmptyStatusEffect();
-        private sealed class EmptyStatusEffect : StatusEffect
-        {
-            public override StatusEffect Init() => throw new InvalidOperationException("Cannot initialise StatusEffect.Empty");
-        }
-        public bool IsEmpty() => this is EmptyStatusEffect;
         /// <summary>
-        /// Unique EffectID used in combination with the source fighter to determine whether two StatusEffects are equal.
+        /// Unique EffectID used to determine whether two StatusEffects are equal.
         /// </summary>
         private readonly object _uid;
-        private uint stacks = 1;
         /// <summary>
         /// Base constructor for any StatusEffect.
         /// </summary>
@@ -31,82 +22,17 @@ namespace FrogBattle.Classes
         /// <param name="maxStacks">The maximum amount of stacks this StatusEffect can have.</param>
         /// <param name="properties">Properties such as invisibility or unremovability.</param>
         /// <param name="effects">Subeffects that this StatusEffect has.</param>
-        public StatusEffect()
+        public StatusEffectDefinition(params SubeffectDefinition[] subeffects)
         {
             _uid = GetType();
-        }
-        /// <summary>
-        /// This is where the StatusEffect initializes the actual subeffects, because many of them require the source or target for the value.
-        /// </summary>
-        public abstract StatusEffect Init();
-        /// <summary>
-        /// Adds turns, stacks and mutable effects from another StatusEffect as necessary.
-        /// </summary>
-        /// <param name="New">The new status effect to take from.</param>
-        public StatusEffect AddMutables(StatusEffect New)
-        {
-            Stacks += New.Stacks;
-            if (New.Properties.HasFlag(Flags.StackTurns)) Turns += New.Turns;
-            foreach (var item in Subeffects.Values.OfType<IMutableEffect>())
-            {
-                if (New.Subeffects.TryGetValue(((Subeffect)item).GetKey(), out var effect)) AddEffect(effect);
-            }
-            return this;
+            Subeffects = subeffects.ToDictionary(x => x.GetKey());
         }
 
-        public static bool operator ==(StatusEffect left, StatusEffect right)
-        {
-            return left?.Equals(right) ?? right is null;
-        }
-        public static bool operator !=(StatusEffect left, StatusEffect right)
-        {
-            return !(left == right);
-        }
-        public override bool Equals(object obj)
-        {
-            if (obj is not StatusEffect eff) return false;
-            return GetHashCode() == eff.GetHashCode();
-        }
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(_uid, Source);
-        }
-
-        public StatusEffect Clone()
-        {
-            var clone = MemberwiseClone() as StatusEffect;
-            clone.Subeffects = new(Subeffects);
-            foreach (var item in clone.Subeffects.Values)
-            {
-                item.SetParent(clone);
-            }
-            return clone;
-        }
-
-        public string Name { get; init; }
-        // EVERY SINGLE TIME THAT I THINK I MANAGED TO FIND A WAY TO INCCORPORATE required INTO MY CODE
-        // EVERY. SINGLE. TIME. IT GETS REMOVED
-        // CUZ CSHARP IS DUM >:(
-        /// <summary>
-        /// The character that applied this effect.
-        /// </summary>
-        public virtual Character Source { get; init; }
-        /// <summary>
-        /// The character to which this effect is applied.
-        /// </summary>
-        public virtual Character Target { get; init; }
-        public Dictionary<object, Subeffect> Subeffects { get; private set; } = [];
-        public uint Turns { get; set; }
-        public uint Stacks
-        {
-            get => stacks;
-            set
-            {
-                stacks = Math.Min(value, MaxStacks);
-            }
-        }
-        public uint MaxStacks { get; init; } = 1;
-        public Flags Properties { get; init; }
+        public string Name { get; protected init; }
+        public uint MaxStacks { get; protected init; }
+        public uint BaseTurns { get; protected init; }
+        public Flags Properties { get; protected init; }
+        public Dictionary<object, SubeffectDefinition> Subeffects { get; protected init; } = [];
 
         [Flags] public enum Flags
         {
@@ -120,9 +46,74 @@ namespace FrogBattle.Classes
             RemoveStack = 1 << 6,
         }
 
-        public bool Is(Flags p)
+        public override bool Equals(object obj)
         {
-            return Properties.HasFlag(p);
+            if (obj is not StatusEffectDefinition eff) return false;
+            return GetHashCode() == eff.GetHashCode();
+        }
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(_uid, MaxStacks, BaseTurns, Properties);
+        }
+
+        public StatusEffectInstance GetInstance(Character source, Character target) => new(this, source, target);
+        public StatusEffectInstance GetInstance(IHasTarget ctx) => GetInstance(ctx.User, ctx.Target);
+    }
+    internal class StatusEffectInstance : IAttributeModifier
+    {
+
+        private readonly StatusEffectDefinition _definition;
+        private uint stacks;
+        public StatusEffectInstance(StatusEffectDefinition definition, Character source, Character target)
+        {
+            Source = source;
+            Target = target;
+            _definition = definition;
+            Turns = _definition.BaseTurns;
+            foreach (var item in _definition.Subeffects)
+            {
+                Subeffects.Add(item.Key, item.Value.GetInstance(this));
+            }
+        }
+        /// <summary>
+        /// The character that applied this effect.
+        /// </summary>
+        public Character Source { get; }
+        Character IHasTarget.User => Source;
+
+        /// <summary>
+        /// The character to which this effect is applied.
+        /// </summary>
+        public Character Target { get; }
+        public StatusEffectDefinition Definition => _definition;
+        public string Name => Definition.Name;
+        public Dictionary<object, SubeffectInstance> Subeffects { get; }
+        public uint Turns { get; private set; }
+        public uint Stacks
+        {
+            get => stacks;
+            set => stacks = Math.Min(value, _definition.MaxStacks);
+        }
+
+        public bool Is(StatusEffectDefinition.Flags p)
+        {
+            return _definition.Properties.HasFlag(p);
+        }
+
+        public void UpdateEffect(SubeffectInstance effect)
+        {
+            if (Subeffects.TryGetValue(effect.GetKey(), out var result)) result.Amount += effect.Amount;
+        }
+
+        public void Renew(StatusEffectInstance effect)
+        {
+            if (Is(StatusEffectDefinition.Flags.StackTurns)) Turns += effect.Turns;
+            else Turns = effect.Turns;
+            Stacks += effect.Stacks;
+            foreach (var item in effect.Subeffects.Values)
+            {
+                UpdateEffect(item);
+            }
         }
 
         /// <summary>
@@ -131,50 +122,16 @@ namespace FrogBattle.Classes
         /// <returns>True if the StatusEffect has run out of turns and should be removed, false otherwise.</returns>
         public bool Expire()
         {
-            return !(Is(Flags.Infinite) || (--Turns > 0));
+            return !(Is(StatusEffectDefinition.Flags.Infinite) || (--Turns > 0));
         }
 
-        public StatusEffect AddEffect(Subeffect effect)
+        public override bool Equals(object obj)
         {
-            if (effect is IMutableEffect mutable) UpdateEffect(mutable);
-            else Subeffects[effect.GetKey()] = effect.SetParent(this);
-            return this;
+            return _definition.Equals((obj as StatusEffectInstance)?._definition);
         }
-        public void UpdateEffect(IMutableEffect effect)
+        public override int GetHashCode()
         {
-            if (Subeffects.TryGetValue(effect.GetKey(), out var result) && result is IMutableEffect mutable) mutable.Amount += effect.Amount;
-        }
-
-        /// <summary>
-        /// Get all subeffects of type <typeparamref name="TResult"/> within this <see cref="StatusEffect"/>.
-        /// </summary>
-        /// <returns>A dictionary containing every effect of type <typeparamref name="TResult"/>.</returns>
-        public Dictionary<object, TResult> GetSubeffectsOfType<TResult>() where TResult : Subeffect
-        {
-            return Subeffects.Values.OfType<TResult>().ToDictionary(x => x.GetKey());
-        }
-
-        /// <summary>
-        /// Get the single effect of type <typeparamref name="TResult"/> contained within effects, or
-        /// a default value if there are none.
-        /// If effects has more than one <typeparamref name="TResult"/> effect, throws an exception.
-        /// </summary>
-        /// <typeparam name="TResult"></typeparam>
-        /// <exception cref="InvalidOperationException"></exception>
-        /// <returns></returns>
-        public TResult SingleEffect<TResult>() where TResult : Subeffect
-        {
-            return Subeffects.Values.OfType<TResult>().SingleOrDefault();
-        }
-
-        /// <summary>
-        /// Gets the subeffect that modifies <paramref name="stat"/> in some way.
-        /// </summary>
-        /// <param name="stat"></param>
-        /// <returns></returns>
-        public Modifier GetModifier(Stats stat)
-        {
-            return GetSubeffectsOfType<Modifier>().TryGetValue((typeof(Modifier), stat), out var result) ? result : null;
+            return HashCode.Combine(_definition);
         }
     }
 }

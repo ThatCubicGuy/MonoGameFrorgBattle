@@ -4,7 +4,7 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
-using static FrogBattle.Classes.StatusEffect;
+using static FrogBattle.Classes.StatusEffectDefinition;
 
 namespace FrogBattle.Classes
 {

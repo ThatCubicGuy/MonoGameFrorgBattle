@@ -36,16 +36,16 @@ namespace FrogBattle.Classes
                 // Outgoing bonuses
                 if (Source is Character sc)
                 {
-                    total += total * (sc.GetDamageTypeBonus(Info.Type, Target as Character) + sc.GetDamageSourceBonus(Info.Source, Target as Character));
+                    total += total * (sc.CalcDamageTypeBonus(Info.Type, Target as Character) + sc.CalcDamageSourceBonus(Info.Source, Target as Character));
                     total += Crit ? total * sc.GetStatVersus(Stats.CritDamage, Target as Character) : 0;
-                    total += total * sc.GetDamageBonus(Target as Character);
+                    total += total * sc.CalcDamageBonus(Target as Character);
                 }
                 // Incoming bonuses
                 if (Target is Character tg)
                 {
-                    total -= total * (tg.GetDamageTypeRES(Info.Type, Source as Character) * Math.Max(0, 1 - Info.TypeResPen) + tg.GetDamageSourceRES(Info.Source, Source as Character));
+                    total -= total * (tg.CalcDamageTypeRES(Info.Type, Source as Character) * Math.Max(0, 1 - Info.TypeResPen) + tg.CalcDamageSourceRES(Info.Source, Source as Character));
                     total -= tg.GetStatVersus(Stats.Def, Source as Character) * Math.Max(0, 1 - Info.DefenseIgnore);
-                    total -= total * tg.GetDamageRES(Source as Character);
+                    total -= total * tg.CalcDamageRES(Source as Character);
                 }
                 return total;
             }
@@ -64,8 +64,12 @@ namespace FrogBattle.Classes
             return snapshot.Amount;
         }
         public Damage Clone() => MemberwiseClone() as Damage;
-        public record Snapshot(double Amount, DamageInfo Info, bool IsCrit, IDamageSource Source = null, IDamageable Target = null)
+        public record Snapshot(double Amount, DamageInfo Info, bool IsCrit, IDamageSource Source = null, IDamageable Target = null) : IHasTarget
         {
+            Character IHasTarget.User => Source as Character;
+
+            Character IHasTarget.Target => Target as Character;
+
             public void Take(double ratio = 1) => Target.TakeDamage(this with { Amount = Amount * ratio });
         }
         public static readonly Damage Missed = null;

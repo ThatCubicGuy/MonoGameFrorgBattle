@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace FrogBattle.Classes
 {
@@ -11,18 +9,19 @@ namespace FrogBattle.Classes
         /// The action of the ITakesAction entity.
         /// </summary>
         /// <returns>True if the turn should end, false otherwise.</returns>
-        void TakeAction();
+        bool StartTurn();
     }
 
     // anything that has a turn in the ActionBar
     internal interface IHasTurn : ITakesAction
     {
+        void EndTurn();
         double BaseActionValue { get; }
     }
 
     internal interface IHasTarget
     {
-        Character Parent { get; }
+        Character User { get; }
         Character Target { get; }
     }
 
@@ -47,7 +46,7 @@ namespace FrogBattle.Classes
 
     internal interface ICanHaveActives
     {
-        List<StatusEffect> ActiveEffects { get; }
+        List<StatusEffectInstance> ActiveEffects { get; }
     }
 
     internal interface ICanHavePassives
@@ -61,20 +60,34 @@ namespace FrogBattle.Classes
         void RemoveEffect(IAttributeModifier effect);
     }
 
-    internal interface IAttack : IHasTarget
+    internal interface IAttack
     {
         AttackInfo AttackInfo { get; }
     }
 
+    internal interface IAppliesEffect
+    {
+        EffectInfo[] EffectInfos { get; }
+    }
+
     internal interface ISubeffect
     {
-        IAttributeModifier Parent { get; init; }
+        double GetAmount(IAttributeModifier ctx);
         object GetKey();
     }
 
     internal interface IMutableEffect : ISubeffect
     {
-        double Amount { get; set; }
+        void SetAmount(double value);
+    }
+
+    internal interface ISubeffectInstance
+    {
+        double Amount { get; }
+    }
+    internal interface IMutableSubeffectInstance : ISubeffectInstance
+    {
+        new double Amount { get; set; }
     }
 
     internal interface IEvent
@@ -84,32 +97,22 @@ namespace FrogBattle.Classes
 
     internal interface ITrigger;
 
-    internal interface IHealing : IHasTarget
+    internal interface IHealing
     {
         HealingInfo HealingInfo { get; }
     }
 
-    internal interface IAppliesEffect : IHasTarget
+    /// <summary>
+    /// An instance type of an attribute modifier. Has Source, Target, and a list of SubeffectInstances.
+    /// </summary>
+    internal interface IAttributeModifier : IHasTarget
     {
-        EffectInfo[] EffectInfos { get; }
+        Character Source => User;
+        Dictionary<object, SubeffectInstance> Subeffects { get; }
     }
 
-    internal interface IPoolChange
+    internal interface ISubeffectInstance
     {
-        public Character Source { get; }
-        public Character Target { get; }
-        /// <summary>
-        /// Automatically calculates the final value of the amount through the attached fighters.
-        /// </summary>
-        public double Amount { get; }
-        public Pools Pool { get; }
-        public Operators Op { get; }
-    }
-
-    internal interface IAttributeModifier
-    {
-        Character Source { get; }
-        Character Target { get; }
-        Dictionary<object, Subeffect> Subeffects { get; }
+        double Amount { get; }
     }
 }

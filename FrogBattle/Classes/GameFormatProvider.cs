@@ -6,7 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
-using static FrogBattle.Classes.StatusEffect;
+using static FrogBattle.Classes.StatusEffectDefinition;
 
 namespace FrogBattle.Classes
 {
@@ -50,7 +50,7 @@ namespace FrogBattle.Classes
                     _ => throw new FormatException($"Unknown format string token: {x}")
                 }).Where(x => x != null)),
 
-                StatusEffect ef => format[0] == 'x' ? (format.Length == 1 ? throw new FormatException("Unable to use auto formatting without second token") : Localization.Translate("effect.display." + format[1] switch
+                StatusEffectInstance ef => format[0] == 'x' ? (format.Length == 1 ? throw new FormatException("Unable to use auto formatting without second token") : Localization.Translate("effect.display." + format[1] switch
                 {
                     // s - Simple
                     's' => "simple",

@@ -1,4 +1,6 @@
-﻿using System;
+﻿using FrogBattle.Classes.BattleManagers;
+using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -7,13 +9,14 @@ namespace FrogBattle.Classes
     internal abstract class Character : IHasTurn, IDamageable, IDamageSource, ISupportsEffects
     {
         public readonly Dictionary<Stats, double> Base;
-        private readonly List<StatusEffect> MarkedForDeath = [];
+        private readonly List<StatusEffectInstance> MarkedForDeath = [];
+        protected readonly List<AbilityDefinition> abilityList = [];
         public readonly string _internalName;
         protected double CurrentHp;
         protected double CurrentMana;
         protected double CurrentEnergy = 0;
         public bool downed = false;
-        protected List<Ability> abilityList;
+        private readonly Game _game;
 
         protected static ArgumentOutOfRangeException InvalidAbility(int selector) => new(nameof(selector), $"Invalid ability number: {selector}");
 
@@ -22,12 +25,12 @@ namespace FrogBattle.Classes
         public event EventHandler<Damage.Snapshot> DamageDealt;
         public event EventHandler<Healing> HealingReceived;
         public event EventHandler<ITakesAction> TurnStarted;
-        public event EventHandler<StatusEffect> EffectGained;
-        public event EventHandler<StatusEffect> EffectRemoved;
-        public event EventHandler<StatusEffect> EffectApplied;
-        public event EventHandler<IPoolChange> PoolChanged;
+        public event EventHandler<StatusEffectInstance> EffectGained;
+        public event EventHandler<StatusEffectInstance> EffectRemoved;
+        public event EventHandler<StatusEffectInstance> EffectApplied;
+        public event EventHandler<PoolChange> PoolChanged;
         public event EventHandler<double> HpChanged;
-        public event EventHandler<Ability> AbilityLaunched;
+        public event EventHandler<AbilityInstance> AbilityLaunched;
         // Generic Event Builders
         public static class EventHelper<TEvent>
         {
@@ -54,40 +57,40 @@ namespace FrogBattle.Classes
                 return handler;
             }
         }
-        protected static EventHandler<Ability> DoTTrigger<TTrigger>(double ratio) where TTrigger : ITrigger
+        protected static EventHandler<AbilityInstance> DoTTrigger<TTrigger>(double ratio) where TTrigger : ITrigger
         {
-            return EventHelper<Ability>.ConditionalEvent(x => x is TTrigger, (sender, e) => e.Target.TakeDoTDamage(ratio));
+            return EventHelper<AbilityInstance>.ConditionalEvent(x => x is TTrigger, (sender, e) => e.Target.TakeDoTDamage(ratio));
         }
         /// <summary>
         /// Create an additional damage effect for the ability <typeparamref name="TTrigger"/>. Add this to <see cref="AbilityLaunched"/>.
         /// </summary>
         /// <param name="damage">The additional damage to take.</param>
         /// <typeparam name="TTrigger">The ability (or type of ability, like <see cref="AoEAttack"/>) which triggers additional damage.</typeparam>
-        /// <returns>An <see cref="EventHandler"/> with an <see cref="Ability"/> argument.</returns>
-        protected static EventHandler<Ability> AdditionalDamage<TTrigger>(Damage damage) where TTrigger : ITrigger
+        /// <returns>An <see cref="EventHandler"/> with an <see cref="AbilityDefinition"/> argument.</returns>
+        protected static EventHandler<AbilityInstance> AdditionalDamage<TTrigger>(Damage damage) where TTrigger : ITrigger
         {
-            return EventHelper<Ability>.ConditionalEvent(x => x is TTrigger, (sender, e) => damage.Take());
+            return EventHelper<AbilityInstance>.ConditionalEvent(x => x is TTrigger, (sender, e) => damage.Take());
         }
         /// <summary>
         /// Create a follow up effect for the ability <typeparamref name="TTrigger"/>. Add this to <see cref="AbilityLaunched"/>.
         /// </summary>
         /// <typeparam name="TTrigger">The ability (or type of ability, like <see cref="BounceAttack"/>) which triggers the follow up ability.</typeparam>
         /// <param name="followUp">The ability to insta-queue as a follow up.</param>
-        /// <returns>An <see cref="EventHandler"/> with an <see cref="Ability"/> argument.</returns>
-        protected static EventHandler<Ability> FollowUp<TTrigger>(Ability followUp) where TTrigger : ITrigger
+        /// <returns>An <see cref="EventHandler"/> with an <see cref="AbilityDefinition"/> argument.</returns>
+        protected static EventHandler<AbilityInstance> FollowUp<TTrigger>(AbilityDefinition followUp) where TTrigger : ITrigger
         {
-            return EventHelper<Ability>.ConditionalEvent(x => x is TTrigger, (sender, e) => QueueInstaAction(followUp));
+            return EventHelper<AbilityInstance>.ConditionalEvent(x => x is TTrigger, (sender, e) => QueueInstaAction(new(followUp, e.User, e.Target)));
         }
-        protected static EventHandler<Ability> LimitedFollowUp<TTrigger>(Ability followUp, uint count) where TTrigger : ITrigger
+        protected static EventHandler<AbilityInstance> LimitedFollowUp<TTrigger>(AbilityDefinition followUp, uint count) where TTrigger : ITrigger
         {
             if (count == 0) return null;
-            void handler(object sender, Ability e)
+            void handler(object sender, AbilityInstance e)
             {
                 if (e is TTrigger)
                 {
-                    QueueInstaAction(followUp);
-                    e.Parent.AbilityLaunched -= handler;
-                    e.Parent.AbilityLaunched += LimitedFollowUp<TTrigger>(followUp, count - 1);
+                    QueueInstaAction(new(followUp, e.User, e.Target));
+                    e.User.AbilityLaunched -= handler;
+                    e.User.AbilityLaunched += LimitedFollowUp<TTrigger>(followUp, count - 1);
                 }
             }
             return handler;
@@ -96,6 +99,7 @@ namespace FrogBattle.Classes
         public Character(string name, BattleManager battle, Dictionary<Stats, double> overrides = null)
         {
             _internalName = string.Join('.', typeof(Character).Name.FirstLower(), GetType().Name.FirstLower());
+            _game = battle.SourceGame;
             Name = name;
             ParentBattle = battle;
             Base = new Dictionary<Stats, double>(Registry.DefaultStats);
@@ -118,9 +122,10 @@ namespace FrogBattle.Classes
         public Character LeftTeammate => PositionInTeam != 0 ? Team.ElementAt(PositionInTeam - 1) : null;
         public Character RightTeammate => PositionInTeam != Team.Count - 1 ? Team.ElementAt(PositionInTeam + 1) : null;
         public required List<Character> EnemyTeam { get; init; }
+        public IReadOnlyList<AbilityDefinition> Abilities => abilityList.AsReadOnly();
         public int AbilityCount => abilityList.Count;
 
-        public List<StatusEffect> ActiveEffects { get; } = [];
+        public List<StatusEffectInstance> ActiveEffects { get; } = [];
         public List<PassiveEffect> PassiveEffects { get; } = [];
 
         #region Pools
@@ -199,7 +204,7 @@ namespace FrogBattle.Classes
         {
             get
             {
-                return ActiveEffects.Sum((x) => x.SingleEffect<Shield>()?.Amount ?? 0);
+                return ActiveEffects.Sum(x => x.SingleEffect<Shield>()?.Amount ?? 0);
             }
             private set
             {
@@ -238,7 +243,7 @@ namespace FrogBattle.Classes
         {
             get
             {
-                return (uint)ActiveEffects.Sum((x) => x.SingleEffect<Barrier>()?.Count ?? 0);
+                return (uint)ActiveEffects.Sum(x => (uint)(x.SingleEffect<Barrier>()?.Amount ?? 0));
             }
             private set
             {
@@ -247,14 +252,14 @@ namespace FrogBattle.Classes
                     uint diff = Barrier - value;
                     foreach (var item in ActiveEffects.SelectMany((x) => x.GetSubeffectsOfType<Barrier>().Values))
                     {
-                        if (diff >= item.Count)
+                        if (diff >= item.Amount)
                         {
-                            diff -= item.Count;
+                            diff -= (uint)item.Amount;
                             RemoveEffect(item.Parent);
                         }
                         else
                         {
-                            item.Count -= diff;
+                            item.Amount -= diff;
                             break;
                         }
                     }
@@ -267,45 +272,50 @@ namespace FrogBattle.Classes
             }
         }
         #endregion
-        public bool IsCrit(IDamageable target) => BattleManager.RNG < (target is Character ch ? GetStatVersus(Stats.CritRate, ch) : GetStat(Stats.CritRate));
-        public uint Stun => (uint)this.GetActives<Stun>().Sum(x => x.Count);
+
+        /// <summary>
+        /// Get the corresponding stat value from the <see cref="Pools"/> enum.
+        /// </summary>
+        /// <param name="source">The fighter for which to resolve the stat.</param>
+        /// <param name="pool">The pool to check the value for.</param>
+        /// <returns>The current value of the pool requested.</returns>
+        public double Resolve(Pools pool)
+        {
+            return pool switch
+            {
+                Pools.Hp => Hp,
+                Pools.Mana => Mana,
+                Pools.Energy => Energy,
+                Pools.Special => Special,
+                Pools.Shield => Shield,
+                Pools.Barrier => Barrier,
+                _ => 0
+            };
+        }
+        public bool IsCrit(IDamageable target) => ConsoleBattleManager.RNG < (target is Character ch ? GetStatVersus(Stats.CritRate, ch) : GetStat(Stats.CritRate));
+        public uint Stun => (uint)this.GetActives<Stun>().Sum(x => (uint)x.Amount);
         public double BaseActionValue => 10000 / GetStat(Stats.Spd);
         #region Predicates
         public bool InTurn { get; private set; }
 
         #endregion
-        public void TakeInstaAction(Ability action)
+        public bool TakeInstaAction(AbilityInstance action)
         {
-            if (Stun > 0) return;
+            if (Stun > 0) return false;
             if (action.TryUse()) AbilityLaunched?.Invoke(this, action);
+            return true;
         }
-        public void TakeAction()
+        public bool StartTurn()
         {
             InTurn = true;
-            TurnStarted?.Invoke(ParentBattle, this);
             StartOfTurnChecks();
-            if (downed) return;
-            if (Stun > 0)
-            {
-                AddBattleText(Generic.Stun, Name, Stun);
-            }
-            else
-            {
-                ApplyChange(new Reward(null, this, 5, Pools.Mana, Operators.AddValue));
-                while (true)
-                {
-                    var selection = this.Console_SelectAbility();
-                    if (selection.TryUse())
-                    {
-                        AbilityLaunched?.Invoke(this, selection);
-                        break;
-                    }
-                    else
-                    {
-                        ParentBattle.UpdateText();
-                    }
-                }
-            }
+            if (Hp <= 0) return false;
+            if (Stun > 0) return false;
+            return true;
+        }
+        public void EndTurn()
+        {
+            if (!InTurn) return;
             EndOfTurnChecks();
             InTurn = false;
         }
@@ -319,27 +329,27 @@ namespace FrogBattle.Classes
         {
             ParentBattle.BattleText.AppendLine(Localization.Translate(key, args));
         }
-        public static void QueueInstaAction(Ability ability)
+        public static void QueueInstaAction(AbilityInstance ability)
         {
-            ability.Parent.ParentBattle.InstaQueue.Add(new CharacterInstaAction(ability));
+            ability.User.ParentBattle.InstaQueue.Add(new CharacterInstaAction(ability));
         }
-        internal record CharacterInstaAction(Ability Action) : ITakesAction
+        internal record CharacterInstaAction(AbilityInstance Action) : ITakesAction, IHasTarget
         {
-            public void TakeAction()
+            public Character User => Action.User;
+            public Character Target => Action.Target;
+            public bool StartTurn()
             {
-                Action.Parent.TakeInstaAction(Action);
+                return Action.User.TakeInstaAction(Action);
             }
         }
         /// <summary>
         /// Calculates the final value for a given stat by using the base values of the fighter and the currently applied effects.
-        /// Trying to calculate <see cref="Stats.None"/> throws an exception.
         /// </summary>
         /// <param name="stat">Stat for which to calculate the final value.</param>
         /// <returns>A double which represents the stat post calculations.</returns>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public double GetStat(Stats stat)
         {
-            if (stat == Stats.None) throw new ArgumentOutOfRangeException(nameof(stat), "Cannot resolve stat Stats.None.");
+            if (stat == Stats.None) return 0;
             return Base[stat] + this.GetActivesValue(stat);
         }
         /// <summary>
@@ -359,8 +369,8 @@ namespace FrogBattle.Classes
         {
             //TurnStarted.Invoke(this, this); not exactly the right place for it
             TakeDoTDamage();
-            MarkedForDeath.AddRange(ActiveEffects.FindAll(x => !x.Is(StatusEffect.Flags.StartTick)));
-            foreach (var item in ActiveEffects.FindAll(x => x.Is(StatusEffect.Flags.StartTick)))
+            MarkedForDeath.AddRange(ActiveEffects.FindAll(x => !x.Is(StatusEffectDefinition.Flags.StartTick)));
+            foreach (var item in ActiveEffects.FindAll(x => x.Is(StatusEffectDefinition.Flags.StartTick)))
             {
                 if (item.Expire()) ActiveEffects.Remove(item);
             }
@@ -395,14 +405,14 @@ namespace FrogBattle.Classes
         {
             switch (effect)
             {
-                case StatusEffect SEff:
+                case StatusEffectInstance SEff:
                     EffectGained?.Invoke(SEff.Source, SEff);
                     SEff.Source?.EffectApplied?.Invoke(this, SEff);
-                    var s_idx = ActiveEffects.IndexOf(SEff);
-                    if (s_idx > -1)
+                    var sameEffect = ActiveEffects.Find(SEff.Equals);
+                    if (sameEffect != null)
                     {
-                        MarkedForDeath.Remove(ActiveEffects[s_idx]);
-                        ActiveEffects[s_idx] = SEff.AddMutables(ActiveEffects[s_idx]);
+                        MarkedForDeath.Remove(sameEffect);
+                        sameEffect.Renew(SEff);
                     }
                     else ActiveEffects.Add(SEff);
                     break;
@@ -422,12 +432,12 @@ namespace FrogBattle.Classes
         {
             switch (effect)
             {
-                case StatusEffect SEff:
+                case StatusEffectInstance SEff:
                     EffectRemoved?.Invoke(this, SEff);
-                    var sameEff = ActiveEffects.Find(x => x == SEff);
+                    var sameEff = ActiveEffects.Find(x => x.Definition.Equals(SEff.Definition));
                     if (sameEff is not null)
                     {
-                        if (sameEff.Properties.HasFlag(StatusEffect.Flags.RemoveStack) && sameEff.Stacks > SEff.Stacks)
+                        if (sameEff.Is(StatusEffectDefinition.Flags.RemoveStack) && sameEff.Stacks > SEff.Stacks)
                         {
                             sameEff.Stacks -= SEff.Stacks;
                         }
@@ -484,40 +494,37 @@ namespace FrogBattle.Classes
         /// Applies a pool change to this fighter.
         /// </summary>
         /// <param name="change">Change to apply.</param>
-        public void ApplyChange(IPoolChange change)
+        public void ApplyChange(PoolChange change, Character source)
         {
+            IHasTarget ctx = new UserTargetContext(source, this);
             switch (change.Pool)
             {
                 case Pools.Hp:
-                    Hp += change.Amount;
+                    Hp += change.GetAmount(ctx);
                     break;
                 case Pools.Mana:
-                    Mana += change.Amount;
+                    Mana += change.GetAmount(ctx);
                     break;
                 case Pools.Energy:
-                    Energy += change.Amount;
+                    Energy += change.GetAmount(ctx);
                     break;
                 case Pools.Special:
-                    Special += change.Amount;
+                    Special += change.GetAmount(ctx);
                     break;
                 case Pools.Shield:
-                    Shield += change.Amount;
+                    Shield += change.GetAmount(ctx);
                     break;
                 case Pools.Barrier:
-                    Barrier += (uint)change.Amount;
+                    Barrier += (uint)change.GetAmount(ctx);
                     break;
                 default:
                     throw new InvalidOperationException($"Unknown pool item \"{change.Pool}\"");
             }
             PoolChanged?.Invoke(null, change);
         }
-        public Ability SelectAbility(Character target, int selector)
+        public AbilityInstance LaunchAbility(Character target, int selector)
         {
-            return abilityList[selector];
-        }
-        public Ability LoadAbility(Character target, int selector)
-        {
-            return abilityList[selector];
+            return new(abilityList[selector], this, target);
         }
         public abstract void LoadAbilities(Character target);
     }

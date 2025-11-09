@@ -12,12 +12,14 @@ namespace TestPlace
     }
     internal class Program
     {
+        internal class Thing : PublishinMyShi
+        {
+
+        }
         static void Main(string[] args)
         {
-            foreach (var item in Enum.GetValues(typeof(Stats)))
-            {
-                Console.WriteLine($"\"stats.{item.ToString()?.camelCase()}\": \"\",");
-            }
+            var thing = new Thing();
+            Console.WriteLine("Name: {0}\nFull name: {1}\nDeclaring type: {2}\nBase type: {3}\nAssembly: {4}", thing.GetType().Name, thing.GetType().FullName, thing.GetType().DeclaringType?.Name, thing.GetType().BaseType, thing.GetType().Assembly);
         }
         public enum Stats
         {

@@ -1,4 +1,5 @@
 ﻿using FrogBattle.Classes;
+using FrogBattle.Classes.BattleManagers;
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
@@ -10,7 +11,7 @@ namespace FrogBattle.Characters
 {
     internal class Snake : Character
     {
-        public Snake(string name, BattleManager battle) : base(name, battle, new()
+        public Snake(string name, ConsoleBattleManager battle) : base(name, battle, new()
         {
             { Stats.CritRate, 0.30 },
             { Stats.EffectRES, 0.30 }
@@ -18,7 +19,7 @@ namespace FrogBattle.Characters
         {
             Pronouns = Registry.CommonPronouns.HE_HIM;
         }
-        private class OverhealOnDamage : StatusEffect, IEvent
+        private class OverhealOnDamage : StatusEffectDefinition, IEvent
         {
             public double Amount { get; }
             public OverhealOnDamage(Damage.Snapshot damage) : base()
@@ -27,7 +28,7 @@ namespace FrogBattle.Characters
                 Name = "Overheal";
                 Amount = damage.Amount * 0.2;
             }
-            public override StatusEffect Init() => AddEffect(new Overheal(Amount));
+            public override StatusEffectDefinition Init() => AddEffect(new Overheal(Amount));
             public static void Event(object sender, Damage.Snapshot e)
             {
                 if (e.Source is not Character sc) return;
@@ -35,7 +36,7 @@ namespace FrogBattle.Characters
                 sc.AddEffect(overheal);
             }
         }
-        private class Box : StatusEffect
+        private class Box : StatusEffectDefinition
         {
             public Box() : base()
             {
@@ -44,7 +45,7 @@ namespace FrogBattle.Characters
                 Properties = Flags.Hidden | Flags.StartTick;
                 Name = "Box";
             }
-            public override StatusEffect Init()
+            public override StatusEffectDefinition Init()
             {
 
                 AddEffect(new Shield(8000, DamageTypes.Blunt));
@@ -56,17 +57,17 @@ namespace FrogBattle.Characters
         public override void LoadAbilities(Character target)
         {
             abilityList.Clear();
-            abilityList.Add(new SkipTurn(this));
-            abilityList.Add(new ThrowGrenade(this));
-            abilityList.Add(new UpKick(this));
-            abilityList.Add(new ClusterLauncher(this));
-            abilityList.Add(new MortarVolley(this));
+            abilityList.Add(new SkipTurn());
+            abilityList.Add(new ThrowGrenade());
+            abilityList.Add(new UpKick());
+            abilityList.Add(new ClusterLauncher());
+            abilityList.Add(new MortarVolley());
             abilityList.TrimExcess();
         }
         #region Abilities
+        private static readonly AbilityInfo AbilityProps = new(typeof(Snake));
         public class ThrowGrenade : BlastAttack, ClusterTrigger
         {
-            private static readonly AbilityInfo AbilityProps = new();
             private static readonly DamageInfo DamageProps = new DamageInfo() with
             {
                 Type = DamageTypes.Blast,
@@ -105,15 +106,15 @@ namespace FrogBattle.Characters
                 Scalar = Stats.Def,
                 HitRate = 1
             };
-            public UpKick(Character source) : base(source, new(), AttackProps, null)
+            public UpKick() : base(AbilityProps, AttackProps, null)
             {
                 WithGenericManaCost(14);
-                WithReward(new(source, source, 0.1 * source.GetStat(Stats.MaxEnergy), Pools.Energy, Operators.AddValue));
+                WithReward(new(0.1, Pools.Energy, Operators.MultiplyBase));
             }
         }
         public class ClusterLauncher : FollowUpSetup
         {
-            public class ClusterGrenade(Character source) : SingleTargetAttack(source, new(), AttackProps, null), MortarTrigger
+            public class ClusterGrenade() : SingleTargetAttack(AbilityProps, AttackProps, null), MortarTrigger
             {
                 public static AttackInfo AttackProps => new()
                 {
@@ -132,15 +133,15 @@ namespace FrogBattle.Characters
                     CanCrit = true
                 };
             }
-            public ClusterLauncher(Character source) : base(source, new(), LimitedFollowUp<ClusterTrigger>(new ClusterGrenade(source), 1))
+            public ClusterLauncher() : base(AbilityProps, LimitedFollowUp<ClusterTrigger>(new ClusterGrenade(), 1))
             {
-                WithRequirement(new StatThresholdRequirement(this, source.Base[Stats.Atk], null, Stats.Atk, Operators.AddValue));
+                WithRequirement(new StatRequirement(1, Stats.Atk, Operators.MultiplyBase));
                 WithGenericManaCost(28);
             }
         }
         public class MortarVolley : FollowUpSetup
         {
-            public class MortarShot(Character source) : BounceAttack(source, new(), AttackProps, null, 5)
+            public class MortarShot() : BounceAttack(AbilityProps, AttackProps, null, 5)
             {
                 private static readonly DamageInfo DamageProps = new()
                 {
@@ -158,9 +159,9 @@ namespace FrogBattle.Characters
                     HitRate = 0.85
                 };
             }
-            public MortarVolley(Character source) : base(source, new(), LimitedFollowUp<MortarTrigger>(new MortarShot(source), 3))
+            public MortarVolley() : base(AbilityProps, LimitedFollowUp<MortarTrigger>(new MortarShot(), 3))
             {
-                WithRequirement(new StatThresholdRequirement(this, source.Base[Stats.Def], null, Stats.Def, Operators.AddValue));
+                WithRequirement(new StatRequirement(0.9, Stats.Def, Operators.MultiplyBase));
                 WithGenericManaCost(24);
             }
         }

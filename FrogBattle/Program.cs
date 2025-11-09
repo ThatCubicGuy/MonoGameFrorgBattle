@@ -24,7 +24,7 @@ internal class Program
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.Write(" in Console Mode...\n");
                 
-                var game = new BattleManager();
+                var game = new ConsoleBattleManager();
                 return game.Run();
             }
             catch (Exception ex)

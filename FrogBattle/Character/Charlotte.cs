@@ -1,11 +1,12 @@
 ﻿using FrogBattle.Classes;
+using FrogBattle.Classes.BattleManagers;
 using System;
 
 namespace FrogBattle.Characters
 {
     internal class Charlotte : Character
     {
-        public Charlotte(string name, BattleManager battle) : base(name, battle)
+        public Charlotte(string name, ConsoleBattleManager battle) : base(name, battle)
         {
             Pronouns = Registry.CommonPronouns.SHE_HER;
             DamageDealt += GuiltProtocolCritDamageBuff;
@@ -22,20 +23,20 @@ namespace FrogBattle.Characters
         public override void LoadAbilities(Character target)
         {
             abilityList.Clear();
-            abilityList.Add(new SkipTurn(this));
-            abilityList.Add(new AlphaProtocol(this));
-            abilityList.Add(new GuiltProtocol(this));
-            abilityList.Add(new BlossomProtocol(this));
-            //abilityList.Add(new NightmareProtocol(this));
-            //abilityList.Add(new DesireProtocol(this));
-            //abilityList.Add(new DarkwaterProtocol(this));
+            abilityList.Add(new SkipTurn());
+            abilityList.Add(new AlphaProtocol());
+            abilityList.Add(new GuiltProtocol());
+            abilityList.Add(new BlossomProtocol());
+            //abilityList.Add(new NightmareProtocol());
+            //abilityList.Add(new DesireProtocol());
+            //abilityList.Add(new DarkwaterProtocol());
             abilityList.TrimExcess();
         }
 
         #region Abilities
         private class AlphaProtocol : ApplyEffectOn
         {
-            public class Buff : StatusEffect
+            public class Buff : StatusEffectDefinition
             {
                 public Buff() : base()
                 {
@@ -43,33 +44,33 @@ namespace FrogBattle.Characters
                     Turns = 3;
                     MaxStacks = 1;
                 }
-                public override StatusEffect Init()
+                public override StatusEffectDefinition Init()
                 {
                     AddEffect(new Modifier(0.20, Stats.Spd, Operators.MultiplyBase));
                     return this;
                 }
             }
             private static readonly EffectInfo[] effectInfos = [new EffectInfo<Buff>()];
-            public AlphaProtocol(Character self) : base(self, new(), effectInfos)
+            public AlphaProtocol() : base(new(), effectInfos)
             {
                 WithGenericManaCost(16);
             }
         }
         private class GuiltProtocol : ApplyEffectOn
         {
-            public class Buff : StatusEffect
+            public class Buff : StatusEffectDefinition
             {
                 public Buff() : base()
                 {
                     Name = "Guilt Protocol";
                 }
-                public override StatusEffect Init()
+                public override StatusEffectDefinition Init()
                 {
                     AddEffect(new Modifier(0.20, Stats.CritDamage, Operators.AddValue));
                     return this;
                 }
             }
-            public class Bloodlust : StatusEffect
+            public class Bloodlust : StatusEffectDefinition
             {
                 public Bloodlust() : base()
                 {
@@ -77,7 +78,7 @@ namespace FrogBattle.Characters
                     Turns = 3;
                     MaxStacks = 10;
                 }
-                public override StatusEffect Init()
+                public override StatusEffectDefinition Init()
                 {
                     AddEffect(new Modifier(0.10, Stats.CritDamage, Operators.MultiplyBase));
                     return this;
@@ -92,7 +93,7 @@ namespace FrogBattle.Characters
                 }
             }
             private static readonly EffectInfo[] effectInfos = [new EffectInfo<Buff>()];
-            public GuiltProtocol(Character self) : base(self self, new(), effectInfos)
+            public GuiltProtocol() : base(new(), effectInfos)
             {
                 WithGenericManaCost(26);
             }
@@ -112,11 +113,11 @@ namespace FrogBattle.Characters
                 Scalar = Stats.MaxHp,
                 HitRate = 1
             };
-            public BlossomProtocol(Character source) : base(source, new(), AttackProps, null, AttackProps.Ratio * 0.65)
+            public BlossomProtocol() : base(new(), AttackProps, null, AttackProps.Ratio * 0.65)
             {
                 WithGenericManaCost(28, 0.80);
             }
-            protected override void DealtDamage(Damage dmg) => HealOnDamage(dmg, 0.45);
+            protected override void DealtDamage(AbilityInstance ctx, Damage dmg) => HealOnDamage(dmg, 0.45);
         }
         private class NightmareProtocol
         {
