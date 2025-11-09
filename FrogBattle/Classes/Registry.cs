@@ -1,4 +1,5 @@
 ﻿using FrogBattle.Classes.BattleManagers;
+using FrogBattle.Classes.Effects;
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
@@ -97,8 +98,8 @@ namespace FrogBattle.Classes
                 _ => throw new ArgumentOutOfRangeException(nameof(type), $"Unknown DoT type: {type}")
             };
         }
-        public static readonly StatusEffectDefinition.Flags DoTFlags = StatusEffectDefinition.Flags.StartTick | StatusEffectDefinition.Flags.Debuff;
-        public class Bleed : StatusEffectDefinition
+        public static readonly EffectFlags DoTFlags = EffectFlags.StartTick | EffectFlags.Debuff;
+        public record class Bleed : StatusEffectDefinition
         {
             public Bleed(double bleedAmount = 0.004) : base(new DamageOverTime(bleedAmount, Operators.MultiplyBase) { Type = DoTTypes.Bleed })
             {
@@ -110,9 +111,9 @@ namespace FrogBattle.Classes
             }
             public double BleedAmount { get; }
         }
-        public class Burn : StatusEffectDefinition
+        public record class Burn : StatusEffectDefinition
         {
-            public Burn(double burnAmount = 25000) : base(new DamageOverTime(burnAmount * (ConsoleBattleManager.RNG / 5 + 0.9), Operators.AddValue) { Type = DoTTypes.Burn })
+            public Burn(double burnAmount = 25000) : base(new DamageOverTime(burnAmount * (BattleManager.RNG / 5 + 0.9), Operators.AddValue) { Type = DoTTypes.Burn })
             {
                 Name = "Burn";
                 BaseTurns = 3;
@@ -120,29 +121,29 @@ namespace FrogBattle.Classes
                 Properties = DoTFlags;
                 BurnAmount = burnAmount;
             }
-            public double BurnAmount { get; init; }
+            public double BurnAmount { get; }
         }
-        public class Shock : StatusEffectDefinition
+        public record class Shock : StatusEffectDefinition
         {
-            public Shock(double shockAmount = 2.10) : base(new DamageOverTime(shockAmount, Operators.AddValue) { Type = DoTTypes.Shock, Scalar = Stats.Atk })
+            public Shock(double shockAmount = 2.10) : base(new DamageOverTime(shockAmount, Operators.AddValue, Stats.Atk, Operators.MultiplyBase) { Type = DoTTypes.Shock })
             {
                 Name = "Shock";
                 BaseTurns = 3;
                 MaxStacks = 1;
                 Properties = DoTFlags;
             }
-            public double ShockAmount { get; init; }
+            public double ShockAmount { get; }
         }
-        public class WindShear : StatusEffectDefinition
+        public record class WindShear : StatusEffectDefinition
         {
-            public WindShear(double shearAmount = 0.65) : base(new DamageOverTime(shearAmount, Operators.AddValue) { Type = DoTTypes.WindShear, Scalar = Stats.Atk })
+            public WindShear(double shearAmount = 0.65) : base(new DamageOverTime(shearAmount, Operators.AddValue, Stats.Atk, Operators.MultiplyBase) { Type = DoTTypes.WindShear })
             {
                 Name = "Wind Shear";
                 BaseTurns = 3;
                 MaxStacks = 5;
                 Properties = DoTFlags;
             }
-            public double ShearAmount { get; init; }
+            public double ShearAmount { get; }
         }
     }
 }

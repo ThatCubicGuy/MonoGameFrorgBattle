@@ -1,4 +1,5 @@
 ﻿using FrogBattle.Classes.BattleManagers;
+using FrogBattle.Classes.Effects;
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
@@ -141,7 +142,7 @@ namespace FrogBattle.Classes
                 if (diff > 0)
                 {
                     // If we're taking damage (difference between current Hp and target Hp is positive)
-                    var overheals = this.GetActives<Overheal>();
+                    var overheals = this.GetActives<Overheal>().Cast<IMutableSubeffectInstance>();
                     foreach (var item in overheals)
                     {
                         // If there's more overheal than damage dealt, reduce overheal value and skip everything else
@@ -217,7 +218,7 @@ namespace FrogBattle.Classes
                 double diff = Shield - value;
                 if (diff > 0)
                 {
-                    var shields = ActiveEffects.SelectMany((x) => x.GetSubeffectsOfType<Shield>().Values);
+                    var shields = this.GetActives<Shield>().Cast<IMutableSubeffectInstance>();
                     foreach (var item in shields)
                     {
                         if (diff >= item.Amount)
@@ -250,7 +251,7 @@ namespace FrogBattle.Classes
                 if ((int)value - Barrier <= 0)
                 {
                     uint diff = Barrier - value;
-                    foreach (var item in ActiveEffects.SelectMany((x) => x.GetSubeffectsOfType<Barrier>().Values))
+                    foreach (var item in this.GetActives<Barrier>().Cast<IMutableSubeffectInstance>())
                     {
                         if (diff >= item.Amount)
                         {
@@ -322,7 +323,7 @@ namespace FrogBattle.Classes
         public virtual void Die()
         {
             AddBattleText(_internalName + ".death", Hp);
-            ParentBattle.Kill(this);
+            Team.Remove(this);
             downed = true;
         }
         public void AddBattleText(string key, params object[] args)
@@ -333,7 +334,7 @@ namespace FrogBattle.Classes
         {
             ability.User.ParentBattle.InstaQueue.Add(new CharacterInstaAction(ability));
         }
-        internal record CharacterInstaAction(AbilityInstance Action) : ITakesAction, IHasTarget
+        internal record CharacterInstaAction(AbilityInstance Action) : ITakesAction, IHasUser
         {
             public Character User => Action.User;
             public Character Target => Action.Target;
@@ -369,8 +370,8 @@ namespace FrogBattle.Classes
         {
             //TurnStarted.Invoke(this, this); not exactly the right place for it
             TakeDoTDamage();
-            MarkedForDeath.AddRange(ActiveEffects.FindAll(x => !x.Is(StatusEffectDefinition.Flags.StartTick)));
-            foreach (var item in ActiveEffects.FindAll(x => x.Is(StatusEffectDefinition.Flags.StartTick)))
+            MarkedForDeath.AddRange(ActiveEffects.FindAll(x => !x.Is(EffectFlags.StartTick)));
+            foreach (var item in ActiveEffects.FindAll(x => x.Is(EffectFlags.StartTick)))
             {
                 if (item.Expire()) ActiveEffects.Remove(item);
             }
@@ -385,11 +386,11 @@ namespace FrogBattle.Classes
         }
         public IEnumerable<Damage> DoTCalculations()
         {
-            return ActiveEffects.Select(x => x.SingleEffect<DamageOverTime>()?.GetDamage()).Where(x => x != null);
+            return ActiveEffects.Select(x => (x.SingleEffect<DamageOverTime>() as StaticSubeffectInstance)?.GetDamage()).Where(x => x != null);
         }
         public List<Healing> RegenCalculations()
         {
-            return [.. ActiveEffects.Select(x => x.SingleEffect<HealingOverTime>()?.GetHealing()).Where(x => x != null)];
+            return [.. ActiveEffects.Select(x => (x.SingleEffect<HealingOverTime>() as StaticSubeffectInstance)?.GetHealing()).Where(x => x != null)];
         }
         public void TakeDoTDamage(double ratio = 1)
         {
@@ -437,7 +438,7 @@ namespace FrogBattle.Classes
                     var sameEff = ActiveEffects.Find(x => x.Definition.Equals(SEff.Definition));
                     if (sameEff is not null)
                     {
-                        if (sameEff.Is(StatusEffectDefinition.Flags.RemoveStack) && sameEff.Stacks > SEff.Stacks)
+                        if (sameEff.Is(EffectFlags.RemoveStack) && sameEff.Stacks > SEff.Stacks)
                         {
                             sameEff.Stacks -= SEff.Stacks;
                         }
@@ -496,7 +497,7 @@ namespace FrogBattle.Classes
         /// <param name="change">Change to apply.</param>
         public void ApplyChange(PoolChange change, Character source)
         {
-            IHasTarget ctx = new UserTargetContext(source, this);
+            ISourceTargetContext ctx = new UserTargetWrapper(source, this);
             switch (change.Pool)
             {
                 case Pools.Hp:

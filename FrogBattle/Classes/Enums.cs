@@ -78,6 +78,7 @@ namespace FrogBattle.Classes
         Drain,
         DamageOverTime
     }
+
     public enum Scalars
     {
         Light,
@@ -146,5 +147,16 @@ namespace FrogBattle.Classes
         Burn    = 1 << 1,
         Shock   = 1 << 2,
         WindShear = 1 << 3,
+    }
+    [Flags] public enum EffectFlags
+    {
+        None = 0,
+        Debuff = 1 << 0,
+        Unremovable = 1 << 1,
+        Hidden = 1 << 2,
+        Infinite = 1 << 3,
+        StartTick = 1 << 4,
+        StackTurns = 1 << 5,
+        RemoveStack = 1 << 6,
     }
 }

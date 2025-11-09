@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FrogBattle.Classes.Effects;
+using System;
 using System.Linq;
 
 namespace FrogBattle.Classes
@@ -40,7 +41,7 @@ namespace FrogBattle.Classes
     }
     internal record EffectStacks(StatusEffectDefinition Effect, PositiveInterval EffectiveInterval) : Condition(ConditionTypes.EffectStacks)
     {
-        public override uint Get(Character user) => (uint)Math.Min(Math.Max(0, (user.ActiveEffects.FirstOrDefault(x => x == Effect)?.Stacks ?? 0) - EffectiveInterval.Min), EffectiveInterval.Width);
+        public override uint Get(Character user) => (uint)Math.Min(Math.Max(0, (user.ActiveEffects.FirstOrDefault(x => x.Definition == Effect)?.Stacks ?? 0) - EffectiveInterval.Min), EffectiveInterval.Width);
         public override object GetKey() => (typeof(EffectStacks), Effect);
     }
     internal record EffectsTypeCount<TEffect>(PositiveInterval EffectiveInterval) : Condition(ConditionTypes.EffectsTypeCount) where TEffect : SubeffectDefinition
@@ -50,7 +51,7 @@ namespace FrogBattle.Classes
     }
     internal record EffectTypeStacks<TEffect>(PositiveInterval EffectiveInterval) : Condition(ConditionTypes.EffectTypeStacks) where TEffect : SubeffectDefinition
     {
-        public override uint Get(Character user) => (uint)Math.Min(Math.Max(0, user.GetActives<TEffect>().Sum(x => (x.Parent as StatusEffectDefinition).Stacks) - EffectiveInterval.Min), EffectiveInterval.Width);
+        public override uint Get(Character user) => (uint)Math.Min(Math.Max(0, user.GetActives<TEffect>().Sum(x => (x.Parent as StatusEffectInstance).Stacks) - EffectiveInterval.Min), EffectiveInterval.Width);
         public override object GetKey() => (typeof(EffectTypeStacks<TEffect>), typeof(TEffect));
     }
 }

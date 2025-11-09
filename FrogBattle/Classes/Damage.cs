@@ -2,7 +2,7 @@
 
 namespace FrogBattle.Classes
 {
-    internal class Damage
+    internal class Damage : ISourceTargetContext
     {
         private readonly double baseAmount;
         /// <summary>
@@ -52,8 +52,13 @@ namespace FrogBattle.Classes
         }
         public IDamageSource Source { get; }
         public IDamageable Target { get; }
+        Character ISourceTargetContext.Source => Source as Character;
+
+        Character ISourceTargetContext.Target => Target as Character;
+
         public DamageInfo Info { get; }
         public bool Crit { get; }
+
         public Snapshot GetSnapshot(double ratio) => new(Amount * ratio, Info, Crit, Source, Target);
         public double Take(double ratio = 1)
         {
@@ -64,19 +69,13 @@ namespace FrogBattle.Classes
             return snapshot.Amount;
         }
         public Damage Clone() => MemberwiseClone() as Damage;
-        public record Snapshot(double Amount, DamageInfo Info, bool IsCrit, IDamageSource Source = null, IDamageable Target = null) : IHasTarget
+        public record Snapshot(double Amount, DamageInfo Info, bool IsCrit, IDamageSource Source = null, IDamageable Target = null) : ISourceTargetContext
         {
-            Character IHasTarget.User => Source as Character;
+            Character ISourceTargetContext.Source => Source as Character;
 
-            Character IHasTarget.Target => Target as Character;
+            Character ISourceTargetContext.Target => Target as Character;
 
             public void Take(double ratio = 1) => Target.TakeDamage(this with { Amount = Amount * ratio });
-        }
-        public static readonly Damage Missed = null;
-        // uuuuuuuuugh
-        public sealed class MissedDamage : Damage
-        {
-            public MissedDamage() : base(null, null, 0, null) { }
         }
     }
 }

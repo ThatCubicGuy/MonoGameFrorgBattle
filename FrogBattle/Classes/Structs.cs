@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace FrogBattle.Classes
+﻿namespace FrogBattle.Classes
 {
     /// <summary>
     /// Some generic text for various common fighter actions.

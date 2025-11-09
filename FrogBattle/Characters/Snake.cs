@@ -1,11 +1,6 @@
 ﻿using FrogBattle.Classes;
 using FrogBattle.Classes.BattleManagers;
-using System;
-using System.Collections.Frozen;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using FrogBattle.Classes.Effects;
 
 namespace FrogBattle.Characters
 {
@@ -19,38 +14,28 @@ namespace FrogBattle.Characters
         {
             Pronouns = Registry.CommonPronouns.HE_HIM;
         }
-        private class OverhealOnDamage : StatusEffectDefinition, IEvent
+        private record class OverhealOnDamage : StatusEffectDefinition, IEvent
         {
-            public double Amount { get; }
-            public OverhealOnDamage(Damage.Snapshot damage) : base()
+            public OverhealOnDamage(Damage.Snapshot damage) : base(new Overheal(damage.Amount * 0.2, 20000))
             {
-                Turns = 3;
+                BaseTurns = 3;
                 Name = "Overheal";
-                Amount = damage.Amount * 0.2;
             }
-            public override StatusEffectDefinition Init() => AddEffect(new Overheal(Amount));
             public static void Event(object sender, Damage.Snapshot e)
             {
                 if (e.Source is not Character sc) return;
-                var overheal = new OverhealOnDamage(e) { Source = sc, Target = e.Target as Character }.Init();
+                var overheal = new OverhealOnDamage(e).GetInstance(e);
                 sc.AddEffect(overheal);
             }
         }
-        private class Box : StatusEffectDefinition
+        private record class Box : StatusEffectDefinition
         {
-            public Box() : base()
+            public Box() : base(new Shield(8000) { ShieldType = DamageTypes.Blunt }, new Stun())
             {
-                Turns = 1;
+                BaseTurns = 1;
                 MaxStacks = 1;
-                Properties = Flags.Hidden | Flags.StartTick;
+                Properties = EffectFlags.Hidden | EffectFlags.StartTick;
                 Name = "Box";
-            }
-            public override StatusEffectDefinition Init()
-            {
-
-                AddEffect(new Shield(8000, DamageTypes.Blunt));
-                AddEffect(new Stun());
-                return this;
             }
         }
 

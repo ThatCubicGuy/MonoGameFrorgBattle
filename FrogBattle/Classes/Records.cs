@@ -1,12 +1,7 @@
 ﻿using FrogBattle.Classes.BattleManagers;
-using Microsoft.Xna.Framework.Graphics;
+using FrogBattle.Classes.Effects;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static FrogBattle.Classes.AbilityDefinition;
 
 namespace FrogBattle.Classes
 {
@@ -58,7 +53,7 @@ namespace FrogBattle.Classes
         public StatusEffectInstance Apply(Character source, Character target)
         {
             if (target == null) return null;
-            if (ConsoleBattleManager.RNG < (ChanceType switch
+            if (BattleManager.RNG < (ChanceType switch
             {
                 ChanceTypes.Fixed => Chance,
                 // Base chance takes into account your EHR and the enemy's EffectRES
@@ -69,5 +64,5 @@ namespace FrogBattle.Classes
         }
     }
 
-    internal record class UserTargetContext(Character User, Character Target) : IHasTarget;
+    internal record class UserTargetWrapper(Character Source, Character Target) : ISourceTargetContext;
 }

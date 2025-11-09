@@ -1,14 +1,11 @@
 ﻿using FrogBattle.Characters;
 using Microsoft.Xna.Framework;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FrogBattle.Classes.BattleManagers
 {
-    internal class ConsoleBattleManager(Game game) : BattleManager(game)
+    internal class ConsoleBattleManager() : BattleManager(null)
     {
         public override void Init()
         {
@@ -53,7 +50,11 @@ namespace FrogBattle.Classes.BattleManagers
             var nextUp = ActionBar.First();
             double minActionValue = nextUp.ActionValue;
             ActionBar.ForEach(item => { item.ActionValue -= minActionValue; });
-            nextUp.Actor.TakeAction();
+            if (nextUp.Actor.StartTurn())
+            {
+                
+            }
+            nextUp.Actor.EndTurn();
             ActionBar.Remove(nextUp);
             ActionBar.Add(new(nextUp.Actor));
         }
@@ -73,13 +74,9 @@ namespace FrogBattle.Classes.BattleManagers
             while (InstaQueue.Count > 0)
             {
                 var item = InstaQueue.First();
-                item.TakeAction();
+                item.StartTurn();
                 InstaQueue.Remove(item);
             }
-        }
-        public override int GetPlayerInput()
-        {
-            
         }
         public virtual void Kill(Character character)
         {
@@ -89,10 +86,14 @@ namespace FrogBattle.Classes.BattleManagers
             if (Team2.Count == 0) throw new ApplicationException(string.Format(GameFormatProvider.Instance, $"Team 1 ({string.Join(", ", Team1.Select(x => $"{{{Team1.IndexOf(x)}:N}}"))}) won the game!", [.. Team1]));
         }
 
-        public override AbilityInstance GetPlayerSelection()
+        public AbilityInstance GetPlayerSelection()
         {
             var abilitySelection = GetPlayerInput();
             var enemySelection = GetPlayerInput();
+            throw new NotImplementedException();
+        }
+        public override int GetPlayerInput()
+        {
             throw new NotImplementedException();
         }
     }

@@ -5,7 +5,7 @@
     /// </summary>
     internal abstract class Requirement
     {
-        public abstract bool Check(IHasTarget ctx);
+        public abstract bool Check(ISourceTargetContext ctx);
         public abstract object GetKey();
     }
     internal class PoolRequirement : Requirement
@@ -23,9 +23,9 @@
 
         public Cost GetCost() => new(_amount, Pool, Op);
 
-        public override bool Check(IHasTarget ctx)
+        public override bool Check(ISourceTargetContext ctx)
         {
-            return ctx.User.Resolve(Pool) >= Op.Apply(_amount, ctx.User.GetStat(Pool.Max()));
+            return ctx.Source.Resolve(Pool) >= Op.Apply(_amount, ctx.Source.GetStat(Pool.Max()));
         }
         public override object GetKey() => (typeof(PoolRequirement), Pool);
     }
@@ -43,9 +43,9 @@
         public Stats Stat { get; }
         public Operators Op { get; }
 
-        public override bool Check(IHasTarget ctx)
+        public override bool Check(ISourceTargetContext ctx)
         {
-            return ctx.User.GetStat(Stat) >= Op.Apply(_amount, ctx.User.Base[Stat]);
+            return ctx.Source.GetStat(Stat) >= Op.Apply(_amount, ctx.Source.Base[Stat]);
         }
         public override object GetKey() => (typeof(StatRequirement), Stat);
     }

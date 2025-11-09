@@ -17,13 +17,15 @@
         public Operators Op { get; }
 
         /// <summary>
-        /// Returns the final value of the amount, after applying the operator.
+        /// Returns the final value of the amount, after applying the operator.<br/>
+        /// The character that caused the pool change is <see cref="ISourceTargetContext.Source"/>,
+        /// and the character that receives it is <see cref="ISourceTargetContext.Target"/>.
         /// </summary>
-        public double GetAmount(IHasTarget ctx)
+        public double GetAmount(ISourceTargetContext ctx)
         {
             return Op.Apply(_baseAmount, ctx.Target.Resolve(Pool)) * GetBonuses(Pool, ctx);
         }
-        protected abstract double GetBonuses(Pools pool, IHasTarget ctx);
+        protected abstract double GetBonuses(Pools pool, ISourceTargetContext ctx);
     }
 
     /// <summary>
@@ -38,12 +40,12 @@
         /// <param name="pool">The pool to which it will be credited.</param>
         /// <param name="op">The operator to apply between the reward amount and base pool value.</param>
         public Reward(double amount, Pools pool, Operators op) : base(amount, pool, op) { }
-        protected override double GetBonuses(Pools pool, IHasTarget ctx)
+        protected override double GetBonuses(Pools pool, ISourceTargetContext ctx)
         {
             return pool switch
             {
-                Pools.Mana => ctx.Target.GetStatVersus(Stats.ManaRegen, ctx.User),
-                Pools.Energy => ctx.Target.GetStatVersus(Stats.EnergyRecharge, ctx.User),
+                Pools.Mana => ctx.Target.GetStatVersus(Stats.ManaRegen, ctx.Source),
+                Pools.Energy => ctx.Target.GetStatVersus(Stats.EnergyRecharge, ctx.Source),
                 _ => 1
             };
         }
@@ -61,11 +63,11 @@
         /// <param name="pool">The pool from which it will be deducted.</param>
         /// <param name="op">The operator to apply between the cost amount and base pool value.</param>
         public Cost(double amount, Pools pool, Operators op) : base(-1 * amount, pool, op) { }
-        protected override double GetBonuses(Pools pool, IHasTarget ctx)
+        protected override double GetBonuses(Pools pool, ISourceTargetContext ctx)
         {
             return pool switch
             {
-                Pools.Mana => ctx.Target.GetStatVersus(Stats.ManaCost, ctx.User),
+                Pools.Mana => ctx.Target.GetStatVersus(Stats.ManaCost, ctx.Source),
                 _ => 1
             };
         }

@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.NetworkInformation;
-using System.Text;
-using System.Threading.Tasks;
-using static FrogBattle.Classes.StatusEffectDefinition;
-
-namespace FrogBattle.Classes
+﻿namespace FrogBattle.Classes
 {
     internal class Healing
     {

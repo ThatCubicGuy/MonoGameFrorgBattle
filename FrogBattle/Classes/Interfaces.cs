@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using FrogBattle.Classes.Effects;
 
 namespace FrogBattle.Classes
 {
@@ -15,14 +16,24 @@ namespace FrogBattle.Classes
     // anything that has a turn in the ActionBar
     internal interface IHasTurn : ITakesAction
     {
-        void EndTurn();
         double BaseActionValue { get; }
+        void EndTurn();
     }
-
-    internal interface IHasTarget
+    /// <summary>
+    /// Implements a Source and a Target for various purposes.
+    /// </summary>
+    internal interface ISourceTargetContext
+    {
+        Character Source { get; }
+        Character Target { get; }
+    }
+    /// <summary>
+    /// Implements a User and a Target. This interface implements <see cref="ISourceTargetContext"/>.
+    /// </summary>
+    internal interface IHasUser : ISourceTargetContext
     {
         Character User { get; }
-        Character Target { get; }
+        Character ISourceTargetContext.Source => User;
     }
 
     internal interface IHasStats
@@ -72,22 +83,32 @@ namespace FrogBattle.Classes
 
     internal interface ISubeffect
     {
-        double GetAmount(IAttributeModifier ctx);
+        ISubeffectInstance GetInstance(IAttributeModifier ctx);
+        double GetAmount(ISubeffectInstance ctx);
+        string GetLocalizedText(ISubeffectInstance ctx);
         object GetKey();
     }
 
     internal interface IMutableEffect : ISubeffect
     {
-        void SetAmount(double value);
+        double BaseAmount { get; }
+        double MaxAmount { get; }
+        double GetMaxAmount(ISubeffectInstance ctx);
     }
 
-    internal interface ISubeffectInstance
+    internal interface ISubeffectInstance : ISourceTargetContext
     {
+        IAttributeModifier Parent { get; }
+        Character ISourceTargetContext.Source => Parent.Source;
+        Character ISourceTargetContext.Target => Parent.Target;
+        ISubeffect Definition { get; }
         double Amount { get; }
     }
+
     internal interface IMutableSubeffectInstance : ISubeffectInstance
     {
         new double Amount { get; set; }
+        double ISubeffectInstance.Amount => Amount;
     }
 
     internal interface IEvent
@@ -105,14 +126,9 @@ namespace FrogBattle.Classes
     /// <summary>
     /// An instance type of an attribute modifier. Has Source, Target, and a list of SubeffectInstances.
     /// </summary>
-    internal interface IAttributeModifier : IHasTarget
+    internal interface IAttributeModifier : ISourceTargetContext
     {
-        Character Source => User;
-        Dictionary<object, SubeffectInstance> Subeffects { get; }
+        Dictionary<object, ISubeffectInstance> Subeffects { get; }
     }
 
-    internal interface ISubeffectInstance
-    {
-        double Amount { get; }
-    }
 }

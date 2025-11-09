@@ -1,4 +1,5 @@
 ﻿using FrogBattle.Classes.BattleManagers;
+using FrogBattle.Classes.Effects;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -9,12 +10,15 @@ namespace FrogBattle.Classes
     // rewrite #7 gazillion lmfao
     internal abstract class AbilityDefinition : ITrigger
     {
+        private readonly string _internalName;
         public AbilityDefinition(AbilityInfo props)
         {
             Properties = props;
-            Name = Localization.Translate($"character.{props.Owner.Name}.ability.{GetType().Name}".camelCase('.'));
+            _internalName = $"character.{props.Owner.Name}.ability.{GetType().Name}".camelCase('.');
+            Name = Localization.Translate(_internalName + ".name");
+            Description = Localization.Translate(_internalName + ".description");
         }
-        public string Name { get; protected init; }
+        public string Name { get; }
         public string Description { get; protected init; }
         public AbilityInfo Properties { get; init; }
         public Dictionary<Pools, Cost> Costs { get; } = [];
@@ -78,7 +82,7 @@ namespace FrogBattle.Classes
         #endregion
     }
     // rewrite #8 gazillion babyyyyy
-    internal sealed class AbilityInstance : IHasTarget
+    internal sealed class AbilityInstance : IHasUser
     {
         public Character User { get; }
         public Character Target { get; }
@@ -162,7 +166,7 @@ namespace FrogBattle.Classes
             long sum = AttackInfo.Split.Sum(x => x);
             foreach (var i in AttackInfo.Split)
             {
-                yield return (!AttackInfo.IndependentHitRate || IsHit()) ? new Damage(User, Target, AttackInfo.Ratio * User.GetStatVersus(AttackInfo.Scalar, Target) * i / sum, AttackInfo.DamageInfo) : Damage.Missed;
+                yield return (!AttackInfo.IndependentHitRate || IsHit()) ? new Damage(User, Target, AttackInfo.Ratio * User.GetStatVersus(AttackInfo.Scalar, Target) * i / sum, AttackInfo.DamageInfo) : null;
             }
             yield break;
         }
@@ -193,7 +197,7 @@ namespace FrogBattle.Classes
             // Use do-while so we can freely check the first element for a miss. Perfect!
             do
             {
-                if (attack.Current != Damage.Missed)
+                if (attack.Current != null)
                 {
                     hit = true;
                     // Ability damage text
@@ -498,7 +502,8 @@ namespace FrogBattle.Classes
 
     internal sealed class SkipTurn : AbilityDefinition
     {
-        public SkipTurn() : base(new())
+        private class Generic { }
+        public SkipTurn() : base(new AbilityInfo(typeof(Generic)))
         {
             WithReward(new Reward(5, Pools.Mana, Operators.AddValue));
         }

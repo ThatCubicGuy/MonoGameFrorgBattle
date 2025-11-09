@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace FrogBattle.Classes
+namespace FrogBattle.Classes.Effects
 {
     /// <summary>
     /// StatusEffects are attribute modifiers (that have to be attached to entities) that influence the entity's stat in some way, and some more. 
     /// </summary>
-    internal abstract class StatusEffectDefinition
+    internal abstract record class StatusEffectDefinition
     {
         /// <summary>
         /// Unique EffectID used to determine whether two StatusEffects are equal.
@@ -29,35 +29,13 @@ namespace FrogBattle.Classes
         }
 
         public string Name { get; protected init; }
-        public uint MaxStacks { get; protected init; }
-        public uint BaseTurns { get; protected init; }
-        public Flags Properties { get; protected init; }
+        public uint MaxStacks { get; init; }
+        public uint BaseTurns { get; init; }
+        public EffectFlags Properties { get; protected init; }
         public Dictionary<object, SubeffectDefinition> Subeffects { get; protected init; } = [];
 
-        [Flags] public enum Flags
-        {
-            None = 0,
-            Debuff      = 1 << 0,
-            Unremovable = 1 << 1,
-            Hidden      = 1 << 2,
-            Infinite    = 1 << 3,
-            StartTick   = 1 << 4,
-            StackTurns  = 1 << 5,
-            RemoveStack = 1 << 6,
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (obj is not StatusEffectDefinition eff) return false;
-            return GetHashCode() == eff.GetHashCode();
-        }
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(_uid, MaxStacks, BaseTurns, Properties);
-        }
-
         public StatusEffectInstance GetInstance(Character source, Character target) => new(this, source, target);
-        public StatusEffectInstance GetInstance(IHasTarget ctx) => GetInstance(ctx.User, ctx.Target);
+        public StatusEffectInstance GetInstance(ISourceTargetContext ctx) => GetInstance(ctx.Source, ctx.Target);
     }
     internal class StatusEffectInstance : IAttributeModifier
     {
@@ -79,7 +57,6 @@ namespace FrogBattle.Classes
         /// The character that applied this effect.
         /// </summary>
         public Character Source { get; }
-        Character IHasTarget.User => Source;
 
         /// <summary>
         /// The character to which this effect is applied.
@@ -87,7 +64,7 @@ namespace FrogBattle.Classes
         public Character Target { get; }
         public StatusEffectDefinition Definition => _definition;
         public string Name => Definition.Name;
-        public Dictionary<object, SubeffectInstance> Subeffects { get; }
+        public Dictionary<object, ISubeffectInstance> Subeffects { get; }
         public uint Turns { get; private set; }
         public uint Stacks
         {
@@ -95,22 +72,22 @@ namespace FrogBattle.Classes
             set => stacks = Math.Min(value, _definition.MaxStacks);
         }
 
-        public bool Is(StatusEffectDefinition.Flags p)
+        public bool Is(EffectFlags p)
         {
             return _definition.Properties.HasFlag(p);
         }
 
-        public void UpdateEffect(SubeffectInstance effect)
+        public void UpdateEffect(IMutableSubeffectInstance effect)
         {
-            if (Subeffects.TryGetValue(effect.GetKey(), out var result)) result.Amount += effect.Amount;
+            if (Subeffects.TryGetValue(effect.Definition.GetKey(), out var result)) ((IMutableSubeffectInstance)result).Amount += effect.Amount;
         }
 
         public void Renew(StatusEffectInstance effect)
         {
-            if (Is(StatusEffectDefinition.Flags.StackTurns)) Turns += effect.Turns;
+            if (Is(EffectFlags.StackTurns)) Turns += effect.Turns;
             else Turns = effect.Turns;
             Stacks += effect.Stacks;
-            foreach (var item in effect.Subeffects.Values)
+            foreach (var item in effect.Subeffects.Values.OfType<IMutableSubeffectInstance>())
             {
                 UpdateEffect(item);
             }
@@ -122,7 +99,7 @@ namespace FrogBattle.Classes
         /// <returns>True if the StatusEffect has run out of turns and should be removed, false otherwise.</returns>
         public bool Expire()
         {
-            return !(Is(StatusEffectDefinition.Flags.Infinite) || (--Turns > 0));
+            return !(Is(EffectFlags.Infinite) || (--Turns > 0));
         }
 
         public override bool Equals(object obj)

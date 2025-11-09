@@ -1,4 +1,4 @@
-﻿using FrogBattle.Classes;
+﻿using FrogBattle.Classes.BattleManagers;
 using System;
 using System.Linq;
 

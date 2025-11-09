@@ -1,12 +1,6 @@
-﻿using Microsoft.Xna.Framework.Graphics;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
+﻿using System;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using static FrogBattle.Classes.StatusEffectDefinition;
+using FrogBattle.Classes.Effects;
 
 namespace FrogBattle.Classes
 {
@@ -64,18 +58,18 @@ namespace FrogBattle.Classes
                     'e' => "effects",
                     // Unknown
                     _ => throw new FormatException($"Unknown format string token: {format[1]}")
-                }, ef, ef.Is(Flags.Infinite) ? null : Localization.Translate("effect.display." + (format[1] == 's' ? "simple" : "generic") + ".turnAddon", ef))) : string.Join(' ', format.Select(x => x switch
+                }, ef, ef.Is(EffectFlags.Infinite) ? null : Localization.Translate("effect.display." + (format[1] == 's' ? "simple" : "generic") + ".turnAddon", ef))) : string.Join(' ', format.Select(x => x switch
                 {
                     // n - Name
                     'n' => ef.Name,
                     // e - Effects
-                    'e' => string.Join(", ", ef.Subeffects.Values.Select(x => x.GetLocalizedText())),
+                    'e' => string.Join(", ", ef.Subeffects.Values.Select(x => (x as SubeffectInstance).GetLocalizedText())),
                     // t - Turns
-                    't' => ef.Is(Flags.Infinite) ? "∞" : ef.Turns.ToString(),
+                    't' => ef.Is(EffectFlags.Infinite) ? "∞" : ef.Turns.ToString(),
                     // s - Stacks + Buff / Debuff arrow
-                    's' => ef.Stacks < 5 ? new string(ef.Is(Flags.Debuff) ? '↓' : '↑', (int)ef.Stacks) : ((ef.Is(Flags.Debuff) ? '↓' : '↑') + ef.Stacks.ToString()),
+                    's' => ef.Stacks < 5 ? new string(ef.Is(EffectFlags.Debuff) ? '↓' : '↑', (int)ef.Stacks) : ((ef.Is(EffectFlags.Debuff) ? '↓' : '↑') + ef.Stacks.ToString()),
                     // b - Buff / Debuff (word)
-                    'b' => ef.Is(Flags.Debuff) ? "debuff" : "buff",
+                    'b' => ef.Is(EffectFlags.Debuff) ? "debuff" : "buff",
                     // Unknown
                     _ => throw new FormatException($"Unknown format string token: {format[0]}")
                 })),

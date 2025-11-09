@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FrogBattle.Classes.Effects;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
@@ -74,8 +75,8 @@ namespace FrogBattle.Classes
         /// </summary>
         /// <param name="ch">The character on which to search for subeffects.</param>
         /// <param name="predicate">The conditions for filtering subeffects.</param>
-        /// <returns>A list of <see cref="SubeffectInstance"/> that meet the criteria.</returns>
-        public static List<SubeffectInstance> GetActives(this ICanHaveActives ch, Func<SubeffectInstance, bool> predicate)
+        /// <returns>A list of <see cref="StaticSubeffectInstance"/> that meet the criteria.</returns>
+        public static List<ISubeffectInstance> GetActives(this ICanHaveActives ch, Func<ISubeffectInstance, bool> predicate)
         {
             return [.. ch.ActiveEffects.SelectMany(x => x.Subeffects.Values.Where(predicate))];
         }
@@ -84,8 +85,8 @@ namespace FrogBattle.Classes
         /// </summary>
         /// <typeparam name="TResult">The type of subeffect to search for.</typeparam>
         /// <param name="ch">The character on which to search for subeffects.</param>
-        /// <returns>A list of every <see cref="SubeffectInstance"/> with a definition of type <typeparamref name="TResult"/>.</returns>
-        public static List<SubeffectInstance> GetActives<TResult>(this ICanHaveActives ch) where TResult : SubeffectDefinition
+        /// <returns>A list of every <see cref="StaticSubeffectInstance"/> with a definition of type <typeparamref name="TResult"/>.</returns>
+        public static List<ISubeffectInstance> GetActives<TResult>(this ICanHaveActives ch) where TResult : ISubeffect
         {
             return ch.GetActives(x => x.Definition is TResult);
         }
@@ -118,7 +119,7 @@ namespace FrogBattle.Classes
         /// Searches <see cref="PassiveEffects"/> for all effects that contain an effect of type <typeparamref name="TResult"/>.
         /// </summary>
         /// <returns>A list of every <typeparamref name="TResult"/> effect from the fighter's currently active PassiveEffects.</returns>
-        public static List<SubeffectInstance> GetPassives<TResult>(this ICanHavePassives ch) where TResult : SubeffectDefinition
+        public static List<ISubeffectInstance> GetPassives<TResult>(this ICanHavePassives ch) where TResult : ISubeffect
         {
             return [.. ch.PassiveEffects.SelectMany(x => x.Subeffects.Values.Where(x => x.Definition is TResult))];
         }
@@ -142,38 +143,38 @@ namespace FrogBattle.Classes
         /// </summary>
         /// <param name="ef">The effect for which to check modifiers.</param>
         /// <param name="stat">The stat of the modifier for which to search.</param>
-        /// <returns>A <see cref="SubeffectInstance"/> with a <see cref="Modifier"/> definition that acts on <paramref name="stat"/>.</returns>
-        public static SubeffectInstance GetModifier(this IAttributeModifier ef, Stats stat)
+        /// <returns>A <see cref="StaticSubeffectInstance"/> with a <see cref="Modifier"/> definition that acts on <paramref name="stat"/>.</returns>
+        public static ISubeffectInstance GetModifier(this IAttributeModifier ef, Stats stat)
         {
             return ef.Subeffects.TryGetValue(Modifier.GetKeyStatic(stat), out var result) ? result : null;
         }
 
-        public static SubeffectInstance GetDamageBonus(this IAttributeModifier ef)
+        public static ISubeffectInstance GetDamageBonus(this IAttributeModifier ef)
         {
             return ef.Subeffects.TryGetValue(DamageBonus.GetKeyStatic(), out var result) ? result : null;
         }
 
-        public static SubeffectInstance GetDamageTypeBonus(this IAttributeModifier ef, DamageTypes type)
+        public static ISubeffectInstance GetDamageTypeBonus(this IAttributeModifier ef, DamageTypes type)
         {
             return ef.Subeffects.TryGetValue(DamageTypeBonus.GetKeyStatic(type), out var result) ? result : null;
         }
 
-        public static SubeffectInstance GetDamageSourceBonus(this IAttributeModifier ef, DamageSources source)
+        public static ISubeffectInstance GetDamageSourceBonus(this IAttributeModifier ef, DamageSources source)
         {
             return ef.Subeffects.TryGetValue(DamageSourceBonus.GetKeyStatic(source), out var result) ? result : null;
         }
 
-        public static SubeffectInstance GetDamageRES(this IAttributeModifier ef)
+        public static ISubeffectInstance GetDamageRES(this IAttributeModifier ef)
         {
             return ef.Subeffects.TryGetValue(DamageRES.GetKeyStatic(), out var result) ? result : null;
         }
 
-        public static SubeffectInstance GetDamageTypeRES(this IAttributeModifier ef, DamageTypes type)
+        public static ISubeffectInstance GetDamageTypeRES(this IAttributeModifier ef, DamageTypes type)
         {
             return ef.Subeffects.TryGetValue(DamageTypeRES.GetKeyStatic(type), out var result) ? result : null;
         }
 
-        public static SubeffectInstance GetDamageSourceRES(this IAttributeModifier ef, DamageSources source)
+        public static ISubeffectInstance GetDamageSourceRES(this IAttributeModifier ef, DamageSources source)
         {
             return ef.Subeffects.TryGetValue(DamageSourceRES.GetKeyStatic(source), out var result) ? result : null;
         }
@@ -182,18 +183,18 @@ namespace FrogBattle.Classes
         /// Get all subeffects of type <typeparamref name="TResult"/> within this <see cref="PassiveEffect"/>.
         /// </summary>
         /// <returns>A dictionary containing every effect of type <typeparamref name="TResult"/>.</returns>
-        public static Dictionary<object, SubeffectInstance> GetSubeffectsOfType<TResult>(this IAttributeModifier ef) where TResult : SubeffectDefinition
+        public static Dictionary<object, ISubeffectInstance> GetSubeffectsOfType<TResult>(this IAttributeModifier ef) where TResult : ISubeffect
         {
             return ef.Subeffects.Where(x => x.Value.Definition is TResult).ToDictionary();
         }
         /// <summary>
-        /// Returns the only <see cref="SubeffectInstance"/> with a definition of type <typeparamref name="TResult"/>,
+        /// Returns the only <see cref="ISubeffectInstance"/> with a definition of type <typeparamref name="TResult"/>,
         /// or a default value if there is none, and throws an exception if there is more than one element that satisfies this condition.
         /// </summary>
         /// <typeparam name="TResult"></typeparam>
         /// <param name="ef"></param>
-        /// <returns>The only <see cref="SubeffectInstance"/> of type <typeparamref name="TResult"/>, or a default value if there is none.</returns>
-        public static SubeffectInstance SingleEffect<TResult>(this IAttributeModifier ef) where TResult : SubeffectDefinition
+        /// <returns>The only <see cref="ISubeffectInstance"/> of type <typeparamref name="TResult"/>, or a default value if there is none.</returns>
+        public static ISubeffectInstance SingleEffect<TResult>(this IAttributeModifier ef) where TResult : ISubeffect
         {
             return ef.Subeffects.Values.SingleOrDefault(x => x is TResult);
         }
@@ -266,6 +267,10 @@ namespace FrogBattle.Classes
             return ch.ActiveEffects.Sum(x => x.GetDamageSourceRES(source).Amount * x.Stacks) + ch.PassiveEffects.Sum(x => x.GetDamageBonus().Amount * x.GetStacks(target));
         }
     }
+    internal static class SourceTargetExtensions
+    {
+        public static ISourceTargetContext Swap(this ISourceTargetContext ctx) => new UserTargetWrapper(ctx.Target, ctx.Source);
+    }
     internal static class ConsoleBattleExtensions
     {
         public static string Console_ToString(this Character src)
@@ -277,7 +282,7 @@ namespace FrogBattle.Classes
                 $"{src.GetStat(Stats.Dex):0} DEX,",
                 $"{src.Mana:0} MP,",
                 $"{src.Energy:0}/{src.GetStat(Stats.MaxEnergy)}] ") + 
-                string.Join(' ', src.ActiveEffects.Where(x => !x.Is(StatusEffectDefinition.Flags.Hidden)).Select(x => string.Format(GameFormatProvider.Instance, "{0:xs}", x)));
+                string.Join(' ', src.ActiveEffects.Where(x => !x.Is(EffectFlags.Hidden)).Select(x => string.Format(GameFormatProvider.Instance, "{0:xs}", x)));
         }
         public static AbilityInstance Console_SelectAbility(this Character src)
         {
