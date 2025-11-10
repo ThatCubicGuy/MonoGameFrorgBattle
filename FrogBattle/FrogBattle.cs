@@ -1,4 +1,4 @@
-﻿using FrogBattle.States;
+﻿using FrogBattle.Scene;
 using FrogBattle.UI;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -13,15 +13,15 @@ namespace FrogBattle
     {
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
-        private States.IState currentState;
+        private IGameScene currentState;
 
-        static readonly int WindowWidth = 640;
-        static readonly int WindowHeight = 360;
-        static readonly Point WindowSize = new(WindowWidth, WindowHeight);
-
-        bool fullscreen = false;
-        bool queueFullscreenValue = false;
-        Dictionary<Keys, bool> ActiveLastFrame = [];
+        private static readonly int WindowWidth = 640;
+        private static readonly int WindowHeight = 360;
+        private static readonly Point WindowSize = new(WindowWidth, WindowHeight);
+        
+        private bool fullscreen = false;
+        private bool queueFullscreenValue = false;
+        private readonly Dictionary<Keys, bool> ActiveLastFrame = [];
 
         private Texture2D background;
 
@@ -64,8 +64,7 @@ namespace FrogBattle
             background = Content.Load<Texture2D>("frorgbattle-ui-draft-2");
             boxTexture = Content.Load<Texture2D>("frorgbattle-ability-box-draft");
             selectedBoxTexture = Content.Load<Texture2D>("frorgbattle-ability-box-selected-winxp-draft");
-            var table = new SelectableTable(Point.Zero, new(3, 2), boxTexture, new(15), selectedBoxTexture, Point.Zero);
-            currentState = new MenuState(table);
+            currentState = new MainMenuScene(this, boxTexture, selectedBoxTexture);
         }
 
         protected override void Update(GameTime gameTime)
@@ -91,12 +90,6 @@ namespace FrogBattle
         {
             GraphicsDevice.Clear(Color.DeepSkyBlue);
             
-            _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-
-            currentState.Draw(_spriteBatch);
-
-            _spriteBatch.End();
-
             base.Draw(gameTime);
         }
     }

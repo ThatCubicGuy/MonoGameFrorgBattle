@@ -1,5 +1,5 @@
 ﻿using Microsoft.Xna.Framework.Graphics;
-using FrogBattle.States;
+using FrogBattle.State;
 
 namespace FrogBattle.UI
 {
@@ -7,7 +7,7 @@ namespace FrogBattle.UI
     {
         private Texture2D background;
         private int id;
-        public Section(MenuState menu, Texture2D background)
+        public Section(MainMenuScene menu, Texture2D background)
         {
             this.background = background;
         }
