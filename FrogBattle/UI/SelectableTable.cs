@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using System;
 using System.Collections;
 
 namespace FrogBattle.UI
@@ -14,36 +15,27 @@ namespace FrogBattle.UI
         //private readonly Texture2D boxTexture;
         //private readonly Texture2D cursorTexture;
         private readonly Point boxSpacing;
-        private readonly Point cursorOffset;
         private Point selectedItem;
-        private Point location;
 
-        public SelectableTable(ISelectableCell[] cells, Point location, Point menuSize, Point box_spacing, Point cursor_offset)
+        public SelectableTable(ISelectableCell[] cells, Point location, Point menuSize, Point box_spacing)
         {
-            if (menuSize.X <= 0 || menuSize.Y <= 0) throw new System.ArgumentException("Cannot create a menu with less than 1 box!", nameof(menuSize));
-            this.location = location;
+            if (menuSize.X <= 0 || menuSize.Y <= 0) throw new ArgumentException("Cannot create a menu with less than 1 box!", nameof(menuSize));
+            Location = location;
             TableSize = menuSize;
-            //boxTexture = box_texture;
             boxSpacing = box_spacing;
-            Size = new(/* boxTexture.Width * */ Columns + boxSpacing.X * (Columns - 1), /* boxTexture.Height * */ Rows + boxSpacing.Y * (Rows - 1));
-            //cursorTexture = cursor_texture;
-            cursorOffset = cursor_offset;
+            Size = new(Columns + boxSpacing.X * (Columns - 1), Rows + boxSpacing.Y * (Rows - 1));
             selectedItem = Point.Zero;
             boxLocations = new Point[BoxCount];
-            boxes = cells;
+            boxes = new ISelectableCell[cells.Length];
+            Array.Copy(cells, boxes, cells.Length);
             for (int i = 0; i < Rows; i++)
             {
                 for (int j = 0; j < Columns; j++)
                 {
                     // Create a static list of the locations of each box, relative to the table's location.
-                    boxLocations[i * Columns + j] = new Point(
-                        // Width + distance between the rightmost bound of a box and the leftmost bound of the next = horizontal distance between each box location
-                        (/* boxTexture.Width + */ boxSpacing.X) * j,
-                        // Height + distance between the lower bound of a box and the upper bound of the next = vertical distance between each box location
-                        (/* boxTexture.Height + */ boxSpacing.Y) * i);
+                    boxLocations[i * Columns + j] = new Point(boxSpacing.X * j, boxSpacing.Y * i);
                 }
             }
-            //GenerateBoxes();
         }
 
         public ISelectableCell Cursor => boxes[SelectedItemID];
@@ -83,15 +75,7 @@ namespace FrogBattle.UI
         public int Rows => TableSize.X;
         public int Columns => TableSize.Y;
         public int BoxCount => TableSize.X * TableSize.Y;
-        public Point Location
-        {
-            get => location;
-            set
-            {
-                location = value;
-                //GenerateBoxes();
-            }
-        }
+        public Point Location { get; set; }
         public Point Size { get; }
         public Rectangle Bounds => new(Location, Size);
         public ISelectableCell this[int number] => boxes[number];
@@ -103,15 +87,6 @@ namespace FrogBattle.UI
         {
             Location += offset;
         }
-
-        //private void GenerateBoxes()
-        //{
-        //    for (int i = 0; i < BoxCount; i++)
-        //    {
-        //        boxes[i] = new(boxTexture, Location + boxLocations[i]);
-        //    }
-        //}
-
         public void MoveCursorLeft() => --CursorColumn;
         public void MoveCursorRight() => ++CursorColumn;
         public void MoveCursorUp() => --CursorRow;

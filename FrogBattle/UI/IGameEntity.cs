@@ -7,7 +7,7 @@ namespace FrogBattle.UI
     {
         void Draw(SpriteBatch spriteBatch);
     }
-    internal interface IDynamicGameEntity
+    internal interface IDynamicGameEntity : IGameEntity
     {
         void Update(GameTime gameTime);
     }

@@ -56,6 +56,30 @@
 /processorParam:TextureFormat=Color
 /build:frorgbattle-ability-box-draft.png
 
+#begin frorgbattle-ability-box-draft.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:frorgbattle-ability-box-draft.png
+
+#begin frorgbattle-ability-box-selected-winxp-draft.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:frorgbattle-ability-box-selected-winxp-draft.png
+
 #begin frorgbattle-ability-box-selected-winxp-draft.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -151,4 +175,28 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:tank_hud.png
+
+#begin UI/Cell.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:UI/Cell.png
+
+#begin UI/Cursor.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:UI/Cursor.png
 

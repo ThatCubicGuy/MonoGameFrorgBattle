@@ -23,7 +23,7 @@ internal class Program
                 Console.Write("Battle");
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.Write(" in Console Mode...\n");
-                
+
                 var game = new BattleManager();
                 return game.Run();
             }
@@ -31,11 +31,13 @@ internal class Program
             {
                 Console.WriteLine(ex);
                 Console.WriteLine("\nRough.");
+                return -1;
             }
         }
         else
         {
             Console.WriteLine($"Invalid argument(s): {args.ToList()}");
+            return 1;
         }
         return 0;
     }
