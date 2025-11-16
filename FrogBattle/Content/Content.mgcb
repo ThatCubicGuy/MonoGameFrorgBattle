@@ -44,54 +44,6 @@
 /processorParam:TextureFormat=Compressed
 /build:File.spritefont;MenuFont.spritefont
 
-#begin frorgbattle-ability-box-draft.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:frorgbattle-ability-box-draft.png
-
-#begin frorgbattle-ability-box-draft.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:frorgbattle-ability-box-draft.png
-
-#begin frorgbattle-ability-box-selected-winxp-draft.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:frorgbattle-ability-box-selected-winxp-draft.png
-
-#begin frorgbattle-ability-box-selected-winxp-draft.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:frorgbattle-ability-box-selected-winxp-draft.png
-
 #begin frorgbattle-ui-draft-1.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -176,7 +128,7 @@
 /processorParam:TextureFormat=Color
 /build:tank_hud.png
 
-#begin UI/Cell.png
+#begin UI/AbilityMenu/Cell.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -186,9 +138,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:UI/Cell.png
+/build:UI/AbilityMenu/Cell.png
 
-#begin UI/Cursor.png
+#begin UI/AbilityMenu/Cursor.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -198,5 +150,5 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:UI/Cursor.png
+/build:UI/AbilityMenu/Cursor.png
 

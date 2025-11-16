@@ -5,7 +5,7 @@ namespace FrogBattle.UI
 {
     public interface ISelectableCell
     {
-        void Draw(SpriteBatch spriteBatch, Point location);
-        void DrawCursorOverlay(SpriteBatch spriteBatch, Point location);
+        void Draw(SpriteBatch spriteBatch, Rectangle bounds);
+        void DrawCursorOverlay(SpriteBatch spriteBatch, Rectangle bounds);
     }
 }

@@ -3,11 +3,17 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace FrogBattle.UI
 {
-    internal record class SelectableCell(Texture2D Texture) : ISelectableCell
+    internal record class SelectableCell(Texture2D Texture, Texture2D CursorTexture) : ISelectableCell
     {
-        public void Draw(SpriteBatch spriteBatch, Point location)
+        public Point Size => Texture.Bounds.Size;
+        public Point CursorSize => CursorTexture.Bounds.Size;
+        public virtual void Draw(SpriteBatch spriteBatch, Rectangle bounds)
         {
-            spriteBatch.Draw(Texture, new Rectangle(location, Texture.Bounds.Size), Color.White);
+            spriteBatch.Draw(Texture, bounds, Color.White);
+        }
+        public virtual void DrawCursorOverlay(SpriteBatch spriteBatch, Rectangle bounds)
+        {
+            spriteBatch.Draw(CursorTexture, bounds, Color.White);
         }
     }
 }

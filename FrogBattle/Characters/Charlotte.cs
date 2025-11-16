@@ -27,9 +27,9 @@ namespace FrogBattle.Characters
                 1 => new AlphaProtocol(this),
                 2 => new GuiltProtocol(this),
                 3 => new BlossomProtocol(this, target),
-                4 => new NightmareProtocol(this),
-                5 => new DesireProtocol(this, target),
-                6 => new DarkwaterProtocol(this, target),
+                //4 => new NightmareProtocol(this),
+                //5 => new DesireProtocol(this, target),
+                //6 => new DarkwaterProtocol(this, target),
                 _ => throw InvalidAbility(selector)
             };
         }

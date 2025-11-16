@@ -1,4 +1,5 @@
-﻿using FrogBattle.Scene;
+﻿using FrogBattle.Input;
+using FrogBattle.Scene;
 using FrogBattle.UI;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -6,6 +7,7 @@ using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace FrogBattle
 {
@@ -13,7 +15,10 @@ namespace FrogBattle
     {
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
-        private IGameScene currentState;
+        private IGameScene currentScene;
+
+        private MainMenuScene _menuScene;
+        private BattleControlScene _battleControlScene;
 
         private static readonly int WindowWidth = 640;
         private static readonly int WindowHeight = 360;
@@ -29,13 +34,7 @@ namespace FrogBattle
         /// <summary>
         /// Returns a random floating-point number that is greater than or equal to 0.0, and less than 1.0.
         /// </summary>
-        public static double RNG
-        {
-            get
-            {
-                return random.NextDouble();
-            }
-        }
+        public static double RNG => random.NextDouble();
 
         public FrogBattle()
         {
@@ -50,11 +49,11 @@ namespace FrogBattle
             Window.Title = "Frorg Battle";
             Window.BeginScreenDeviceChange(false);
             Window.EndScreenDeviceChange(Window.ScreenDeviceName, WindowWidth, WindowHeight);
+            _battleControlScene = new BattleControlScene(this);
+            currentScene = _battleControlScene;
+            Task.Run(GameInput.Update);
             base.Initialize();
         }
-
-        private Texture2D boxTexture;
-        private Texture2D selectedBoxTexture;
 
         protected override void LoadContent()
         {
@@ -62,13 +61,13 @@ namespace FrogBattle
 
             // TODO: use this.Content to load your game content here
             background = Content.Load<Texture2D>("frorgbattle-ui-draft-2");
-            boxTexture = Content.Load<Texture2D>("frorgbattle-ability-box-draft");
-            selectedBoxTexture = Content.Load<Texture2D>("frorgbattle-ability-box-selected-winxp-draft");
-            currentState = new MainMenuScene(this, boxTexture, selectedBoxTexture);
+
+            base.LoadContent();
         }
 
         protected override void Update(GameTime gameTime)
         {
+            GameInput.Update();
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
             if (Keyboard.GetState().IsKeyDown(Keys.Space))
@@ -81,7 +80,7 @@ namespace FrogBattle
             }
             else ActiveLastFrame[Keys.Space] = false;
 
-            currentState.Update();
+            currentScene.Update(gameTime);
 
             base.Update(gameTime);
         }
@@ -89,7 +88,13 @@ namespace FrogBattle
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.DeepSkyBlue);
-            
+
+            _spriteBatch.Begin();
+
+            currentScene.Draw(_spriteBatch, gameTime);
+
+            _spriteBatch.End();
+
             base.Draw(gameTime);
         }
     }
