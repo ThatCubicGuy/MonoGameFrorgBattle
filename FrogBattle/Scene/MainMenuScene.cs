@@ -29,7 +29,7 @@ namespace FrogBattle.Scene
             ];
             var emptyCell = new SelectableCell(cursorTexture, cellTexture);
 
-            menu = new SelectableTable(_cells, emptyCell, new(1, 3), Point.Zero, cellTexture.Bounds.Size, new(20));
+            menu = new SelectableTable(_cells, new Point(1, 3), Point.Zero, cellTexture.Bounds.Size, new Point(20));
         }
 
         public void Draw(SpriteBatch spriteBatch, GameTime gameTime)

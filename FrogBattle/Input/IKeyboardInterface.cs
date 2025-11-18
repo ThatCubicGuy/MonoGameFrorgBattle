@@ -6,8 +6,8 @@ namespace FrogBattle.Input
 {
     public interface IKeyboardInterface
     {
-        IReadOnlyDictionary<InputTypes, Keys[]> InputMap { get; }
-        IReadOnlySet<Keys> ValidKeys => InputMap.Values.SelectMany(x => x.AsEnumerable()).ToHashSet();
+        IReadOnlyDictionary<Keys, InputTypes> InputMap { get; }
+        IReadOnlySet<Keys> ValidKeys => InputMap.Keys.ToHashSet();
         InputTypes Convert(Keys key);
         bool IsInputDown(InputTypes inputType);
     }

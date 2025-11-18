@@ -18,7 +18,7 @@ namespace FrogBattle
         private IGameScene currentScene;
 
         private MainMenuScene _menuScene;
-        private BattleControlScene _battleControlScene;
+        private BattleScene _battleScene;
 
         private static readonly int WindowWidth = 640;
         private static readonly int WindowHeight = 360;
@@ -49,9 +49,9 @@ namespace FrogBattle
             Window.Title = "Frorg Battle";
             Window.BeginScreenDeviceChange(false);
             Window.EndScreenDeviceChange(Window.ScreenDeviceName, WindowWidth, WindowHeight);
-            _battleControlScene = new BattleControlScene(this);
-            currentScene = _battleControlScene;
-            Task.Run(GameInput.Update);
+            _battleScene = new BattleScene(this);
+            currentScene = _battleScene;
+            Task.Run(InputManager.Update);
             base.Initialize();
         }
 
@@ -67,7 +67,7 @@ namespace FrogBattle
 
         protected override void Update(GameTime gameTime)
         {
-            GameInput.Update();
+            InputManager.Update();
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
             if (Keyboard.GetState().IsKeyDown(Keys.Space))

@@ -20,21 +20,20 @@ namespace FrogBattle.UI
 		/// <summary>
 		/// Creates a new selectable table with the given elements.
 		/// </summary>
-		/// <param name="cells">An <see cref="IEnumerable{T}"/> containing every <see cref="ISelectableCell"/> that this table should have.</param>
-		/// <param name="defaultValue">The default value to fill the rest of the array of boxes with.</param>
-		/// <param name="grid_size">The maximum capacity of the table (columns, rows).</param>
+		/// <param name="baseCells">An <see cref="IEnumerable{T}"/> containing every <see cref="ISelectableCell"/> that this table should have.</param>
+		/// <param name="gridSize">The maximum capacity of the table (columns, rows).</param>
 		/// <param name="location">The top-left coordinates of the table.</param>
-		/// <param name="cell_size">The bounds within which each cell can draw itself.</param>
-		/// <param name="cell_spacing">The (horizontal, vertical) distance in pixels between each cell rectangle.</param>
+		/// <param name="cellSize">The bounds within which each cell can draw itself.</param>
+		/// <param name="cellSpacing">The (horizontal, vertical) distance in pixels between each cell rectangle.</param>
 		/// <exception cref="ArgumentOutOfRangeException"></exception>
-		public SelectableTable(ISelectableCell[] baseCells, Point grid_size, Point location, Point cell_size, Point cell_spacing = new())
+		public SelectableTable(ISelectableCell[] baseCells, Point gridSize, Point location, Point cellSize, Point cellSpacing = new())
 		{
-			if (grid_size.X <= 0 || grid_size.Y <= 0) throw new ArgumentOutOfRangeException(nameof(grid_size), "Cannot create a menu with less than 1 box!");
+			if (gridSize.X <= 0 || gridSize.Y <= 0) throw new ArgumentOutOfRangeException(nameof(gridSize), "Cannot create a menu with less than 1 box!");
             Location = location;
-			GridSize = grid_size;
-			cellSize = cell_size;
-			cellSpacing = cell_spacing;
-			Size = new(cellSize.X * Columns + cellSize.X * (Columns - 1), Rows + cellSize.Y * (Rows - 1));
+			GridSize = gridSize;
+			this.cellSize = cellSize;
+			this.cellSpacing = cellSpacing;
+			Size = new Point(this.cellSize.X * Columns + this.cellSize.X * (Columns - 1), Rows + this.cellSize.Y * (Rows - 1));
 			selectedItem = Point.Zero;
 			cellLocations = new Point[MaximumCellCount];
 			cells = new ISelectableCell[MaximumCellCount];
@@ -48,13 +47,12 @@ namespace FrogBattle.UI
 			set
 			{
 				selectedItem.Y = value;
-				if (value > Rows - 1) selectedItem.Y = 0;
 				if (value < 0) selectedItem.Y = Rows - 1;
-
-                if (!IsCellValid(CursorRow, CursorColumn))
-                {
-                    --CursorRow;
-                }
+				else if (value >= Rows || !IsCellValid(value, CursorColumn)) selectedItem.Y = 0;
+				while (!IsCellValid(CursorRow, CursorColumn) && selectedItem.Y > 0)
+				{
+					--selectedItem.Y;
+				}
             }
 		}
 		public int CursorColumn
@@ -63,12 +61,11 @@ namespace FrogBattle.UI
 			set
 			{
 				selectedItem.X = value;
-				if (value > Columns - 1) selectedItem.X = 0;
 				if (value < 0) selectedItem.X = Columns - 1;
-
-				if (!IsCellValid(CursorRow, CursorColumn))
+				else if (value >= Columns || !IsCellValid(CursorRow, value)) selectedItem.X = 0;
+				while (!IsCellValid(CursorRow, CursorColumn) && selectedItem.X > 0)
 				{
-					--CursorColumn;
+					--selectedItem.X;
 				}
 			}
 		}
@@ -103,11 +100,11 @@ namespace FrogBattle.UI
         
 		private bool IsCellValid(int row, int col)
         {
-            int index = row * Columns + col;
+            var index = row * Columns + col;
             return index >= 0 && index < CellCount && cells[index] != null;
         }
 
-        public void OffsetLocation(int x_offset, int y_offset) => OffsetLocation(new(x_offset, y_offset));
+        public void OffsetLocation(int xOffset, int yOffset) => OffsetLocation(new Point(xOffset, yOffset));
 		public void OffsetLocation(Point offset) => Location += offset;
         public void MoveCursorLeft() => --CursorColumn;
 		public void MoveCursorRight() => ++CursorColumn;
@@ -119,7 +116,7 @@ namespace FrogBattle.UI
             CellCount = newCells.Length;
 			Array.Clear(cells);
 			Array.Copy(newCells, cells, CellCount);
-            for (int i = 0; i < CellCount; i++)
+            for (var i = 0; i < CellCount; i++)
             {
                 // Create a list of the locations of each box, relative to the table's location.
                 cellLocations[i] = new Point((cellSize.X + cellSpacing.X) * (i % Columns), (cellSize.Y + cellSpacing.Y) * (i / Columns));
@@ -128,11 +125,11 @@ namespace FrogBattle.UI
 
 		public void Draw(SpriteBatch spriteBatch)
 		{
-			for (uint i = 0; i < cells.Length; i++)
+			for (uint i = 0; i < CellCount; i++)
 			{
-				cells[i].Draw(spriteBatch, new(Location + cellLocations[i], cellSize));
+				cells[i].Draw(spriteBatch, new Rectangle(Location + cellLocations[i], cellSize));
 			}
-			Cursor.DrawCursorOverlay(spriteBatch, new(Location + cellLocations[SelectedItemID], cellSize));
+			Cursor.DrawCursorOverlay(spriteBatch, new Rectangle(Location + cellLocations[SelectedItemID], cellSize));
 		}
 
 		IEnumerator<ISelectableCell> IEnumerable<ISelectableCell>.GetEnumerator() => (IEnumerator<ISelectableCell>)GetEnumerator();

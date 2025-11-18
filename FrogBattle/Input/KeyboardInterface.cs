@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework.Input;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 
 namespace FrogBattle.Input
@@ -8,19 +9,18 @@ namespace FrogBattle.Input
 	{
 		public KeyboardInterface(Keys[] cancelKeys, Keys[] confirmKeys, Keys[] rightKeys, Keys[] leftKeys, Keys[] upKeys, Keys[] downKeys) : this()
 		{
-			InputMap = new Dictionary<InputTypes, Keys[]>()
-			{
-				{ InputTypes.Cancel, cancelKeys },
-				{ InputTypes.Confirm, confirmKeys },
-				{ InputTypes.Right, rightKeys },
-				{ InputTypes.Left, leftKeys },
-				{ InputTypes.Up, upKeys },
-				{ InputTypes.Down, downKeys },
-			}.AsReadOnly();
+			var result = new Dictionary<Keys, InputTypes>();
+			Array.ForEach(confirmKeys, item => result.Add(item, InputTypes.Confirm));
+			Array.ForEach(cancelKeys, item => result.Add(item, InputTypes.Cancel));
+			Array.ForEach(rightKeys, item => result.Add(item, InputTypes.Right));
+			Array.ForEach(leftKeys, item => result.Add(item, InputTypes.Left));
+			Array.ForEach(upKeys, item => result.Add(item, InputTypes.Up));
+			Array.ForEach(downKeys, item => result.Add(item, InputTypes.Down));
+			InputMap = result;
 		}
 
-		public IReadOnlyDictionary<InputTypes, Keys[]> InputMap { get; }
-
+		public IReadOnlyDictionary<Keys, InputTypes> InputMap { get; }
+		
 		public InputTypes Convert(Keys key)
 		{
 			throw new NotImplementedException();
