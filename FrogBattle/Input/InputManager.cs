@@ -24,7 +24,7 @@ namespace FrogBattle.Input
 		
 		public static List<InputTypes> GetActions()
 		{
-			var actions = new HashSet<InputTypes>();
+			var actions = new HashSet<InputTypes>(6);
 			foreach (var item in currentKeyboardState.GetPressedKeys())
 			{
 				actions.Add(KeyboardInterface.InputMap[item]);
